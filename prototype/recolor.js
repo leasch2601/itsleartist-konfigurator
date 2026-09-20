@@ -43,6 +43,11 @@ export function hslToRgb(h, s, l) {
  * Gestreckt auf 0..1 bleibt die gemalte Struktur erhalten und laesst sich
  * anschliessend in JEDE Zielhelligkeit legen - auch in ein helles Palomino.
  */
+// Wie stark die Helligkeitsspanne einer Ebene hoechstens gedehnt werden darf.
+const MAX_GAIN = 5;
+// Ab dieser Spanne gilt eine Ebene als voll durchgemalt (statt flaechig).
+const FULL_STRUCTURE = 0.25;
+
 export function buildStructureMap(imageData) {
   const { data, width, height } = imageData;
   const n = width * height;
@@ -72,7 +77,15 @@ export function buildStructureMap(imageData) {
   // (ein schwarzes Auge, ein weisser Glanzpunkt) die Streckung nicht kippen.
   const lo = percentile(histogram, visibleWeight, 0.02);
   const hi = percentile(histogram, visibleWeight, 0.98);
-  const span = Math.max(hi - lo, 0.02);
+  const rawSpan = hi - lo;
+
+  // Flaechig gemalte Ebenen duerfen NICHT auf den vollen Bereich gestreckt
+  // werden: Bei einer fast einfarbigen Flaeche waeren die einzigen Unterschiede
+  // Pinselrauschen, und das Strecken macht daraus sichtbare Flecken.
+  // Der Gewinn wird gedeckelt, und zusaetzlich merkt sich die Karte, wie viel
+  // echte Struktur ueberhaupt vorhanden war.
+  const span = Math.max(rawSpan, 1 / MAX_GAIN);
+  const structure = Math.min(1, rawSpan / FULL_STRUCTURE);
 
   let meanNorm = 0;
   for (let i = 0; i < n; i++) {
@@ -83,7 +96,7 @@ export function buildStructureMap(imageData) {
   }
   meanNorm = visibleWeight > 0 ? meanNorm / visibleWeight : 0.5;
 
-  return { lum, alpha, sat, width, height, meanNorm, sourceRange: [lo, hi] };
+  return { lum, alpha, sat, width, height, meanNorm, structure, sourceRange: [lo, hi] };
 }
 
 function percentile(histogram, total, p) {
@@ -102,7 +115,7 @@ function percentile(histogram, total, p) {
  * contrast: wie stark die gemalte Struktur durchschlaegt (0 = flach, 1 = voll)
  */
 export function applyColor(map, hexColor, contrast = 0.85, out) {
-  const { lum, alpha, width, height, meanNorm } = map;
+  const { lum, alpha, width, height, meanNorm, structure } = map;
   const n = width * height;
   const result = out || new ImageData(width, height);
   const data = result.data;
@@ -121,7 +134,7 @@ export function applyColor(map, hexColor, contrast = 0.85, out) {
     const a = alpha[i];
     if (a === 0) { data[o] = data[o + 1] = data[o + 2] = data[o + 3] = 0; continue; }
 
-    const d = (lum[i] - meanNorm) * contrast;
+    const d = (lum[i] - meanNorm) * contrast * structure;
     const L = d >= 0
       ? targetL + d * headroomUp * 1.6
       : targetL + d * headroomDown * 1.6;

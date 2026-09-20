@@ -18,7 +18,7 @@
 <script type="module">
 import { buildStructureMap, applyColor } from './recolor.js';
 const S = 500;
-const BASE = 'motive/appaloosa-portrait';
+const BASE = 'motive/portrait-locken';
 const LAYERS = [
   { file:'10_fell.png',              role:'tint',  color:'fur',   blend:'source-over' },
   { file:'20_maehne.png',            role:'tint',  color:'mane',  blend:'source-over' },
@@ -26,6 +26,8 @@ const LAYERS = [
   { file:'50_detail_overlay.png',    role:'fixed', blend:'overlay' },
   { file:'60_glanz_dodge.png',       role:'fixed', blend:'color-dodge' },
   { file:'70_highlight_add.png',     role:'tint',  color:'light', blend:'lighter', alpha:0.7 },
+  { file:'80_augenreflex.png',       role:'fixed', blend:'source-over' },
+  { file:'90_outline.png',           role:'fixed', blend:'source-over' },
 ];
 const VARIANTS = [
   { name:'Rappe',     fur:'#2f2b34', mane:'#15131a', light:'#b9c6e0', bg:['#2a2b38','#0b0c12'] },

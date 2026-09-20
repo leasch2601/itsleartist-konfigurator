@@ -2,15 +2,20 @@
 /**
  * Liest den motive/-Ordner aus und baut daraus die index.json.
  *
- * Damit muss Lea nie eine Konfigurationsdatei anfassen: Ebenen exportieren,
+ * Lea muss nie eine Konfigurationsdatei anfassen: Ebenen exportieren,
  * nach Schema benennen, in einen Ordner legen, dieses Skript laufen lassen.
+ *
+ * Dateiname:  NN_rolle[~variante][_blendmodus].png
+ *   NN         Stapelreihenfolge, klein liegt unten
+ *   rolle      bestimmt, ob und welchen Farbregler der Kunde bekommt
+ *   ~variante  optionale Alternativfassung derselben Ebene (z.B. ~appaloosa)
+ *   blendmodus multiply | overlay | dodge | add | screen
  */
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..', 'motive');
 
-// Dateiname-Endung -> Blendmodus im Canvas
 const BLEND = {
   multiply: 'multiply',
   overlay: 'overlay',
@@ -21,53 +26,71 @@ const BLEND = {
 
 // Ebenen-Schluesselwort -> Farbregler, den der Kunde dafuer bekommt
 const TINT = {
-  fell: { slot: 'fell', label: 'Fell' },
-  tupfen: { slot: 'tupfen', label: 'Tupfen' },
-  abzeichen: { slot: 'abzeichen', label: 'Abzeichen' },
-  maehne: { slot: 'maehne', label: 'Mähne' },
-  mahne: { slot: 'maehne', label: 'Mähne' },
-  auge: { slot: 'auge', label: 'Augen' },
-  highlight: { slot: 'licht', label: 'Licht' },
+  fell: 'fell',
+  tupfen: 'tupfen',
+  abzeichen: 'abzeichen',
+  maehne: 'maehne',
+  mahne: 'maehne',
+  auge: 'auge',
+  highlight: 'licht',
 };
 
-const BARE_LABEL = {
-  multiply: "Schattierung", overlay: "Overlay",
-  dodge: "Colour Dodge", add: "Highlights", screen: "Screen",
+const LABEL = {
+  fell: 'Fell', tupfen: 'Tupfen', abzeichen: 'Abzeichen', maehne: 'Mähne',
+  auge: 'Augen', highlight: 'Highlights', outline: 'Outline',
+  augenreflex: 'Augenglanz', schatten: 'Schattierung', detail: 'Details',
+  glanz: 'Glanz', multiply: 'Schattierung', overlay: 'Overlay',
+  dodge: 'Colour Dodge', add: 'Highlights', screen: 'Screen',
 };
-
-function parseLayer(file) {
-  const m = /^(\d+)_([a-z0-9]+)(?:_([a-z]+))?\.png$/i.exec(file);
-  if (!m) return null;
-  const [, order, key, suffix] = m;
-  const lower = key.toLowerCase();
-  const tint = TINT[lower];
-
-  // Kurzform zulassen: "60_dodge.png" ohne Namensteil meint den Blendmodus
-  // selbst. Sonst laege die Ebene stumm als "normal" im Stapel.
-  const bare = !suffix && !tint && BLEND[lower] ? lower : null;
-  return {
-    file,
-    order: Number(order),
-    blend: BLEND[(suffix || bare || '').toLowerCase()] || 'source-over',
-    role: tint ? 'tint' : 'fixed',
-    slot: tint ? tint.slot : undefined,
-    label: tint ? tint.label : bare ? BARE_LABEL[bare] : prettify(key),
-  };
-}
 
 const prettify = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+function parseLayer(file) {
+  const m = /^(\d+)_([a-z0-9]+)(?:~([a-z0-9-]+))?(?:_([a-z]+))?\.png$/i.exec(file);
+  if (!m) return null;
+  const [, order, rawKey, variant, suffix] = m;
+  const key = rawKey.toLowerCase();
+  const slot = TINT[key];
+
+  // Kurzform zulassen: "60_dodge.png" ohne Rollennamen meint den Blendmodus
+  // selbst. Ohne das laege die Ebene stumm als "normal" im Stapel.
+  const bare = !suffix && !slot && BLEND[key] ? key : null;
+
+  return {
+    file,
+    order: Number(order),
+    key,
+    variant: variant ? variant.toLowerCase() : null,
+    blend: BLEND[(suffix || bare || '').toLowerCase()] || 'source-over',
+    role: slot ? 'tint' : 'fixed',
+    slot: slot || undefined,
+    label: LABEL[key] || prettify(key),
+  };
+}
+
 function scanMotif(dir) {
   const files = fs.readdirSync(path.join(ROOT, dir));
-  const layers = files
-    .map(parseLayer)
-    .filter(Boolean)
-    .sort((a, b) => a.order - b.order);
+  const parsed = files.map(parseLayer).filter(Boolean);
+  if (!parsed.length) return null;
 
-  if (!layers.length) return null;
+  // Varianten an ihre Grundebene haengen, statt sie als eigene Ebene zu stapeln
+  const byKey = new Map();
+  for (const l of parsed.filter((l) => !l.variant)) byKey.set(l.order + '_' + l.key, l);
+
+  for (const v of parsed.filter((l) => l.variant)) {
+    const base = byKey.get(v.order + '_' + v.key);
+    if (!base) {
+      console.warn(`  ! ${dir}: ${v.file} hat keine Grundebene ${v.order}_${v.key}.png`);
+      continue;
+    }
+    (base.variants ||= []).push({ name: v.variant, file: v.file });
+  }
+
+  const layers = [...byKey.values()].sort((a, b) => a.order - b.order);
+  for (const l of layers) delete l.key;
 
   const skipped = files.filter(
-    (f) => f.endsWith('.png') && !f.startsWith('_') && !parseLayer(f)
+    (f) => f.toLowerCase().endsWith('.png') && !f.startsWith('_') && !parseLayer(f)
   );
 
   return {
@@ -79,25 +102,24 @@ function scanMotif(dir) {
   };
 }
 
-const dirs = fs
-  .readdirSync(ROOT, { withFileTypes: true })
+const dirs = fs.readdirSync(ROOT, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => d.name);
 
 const motive = [];
 for (const dir of dirs) {
   const motif = scanMotif(dir);
-  if (!motif) {
-    console.warn(`  ! ${dir}: keine gueltig benannten Ebenen gefunden`);
-    continue;
-  }
+  if (!motif) { console.warn(`  ! ${dir}: keine gueltig benannten Ebenen gefunden`); continue; }
   if (motif.skipped.length) {
     console.warn(`  ! ${dir}: ignoriert (Namensschema passt nicht): ${motif.skipped.join(', ')}`);
   }
   delete motif.skipped;
   motive.push(motif);
+
   const slots = [...new Set(motif.layers.filter((l) => l.slot).map((l) => l.slot))];
-  console.log(`  + ${dir}: ${motif.layers.length} Ebenen, Farbregler: ${slots.join(', ') || 'keine'}`);
+  const varis = motif.layers.filter((l) => l.variants).map((l) => `${l.label}: ${l.variants.map(v => v.name).join('/')}`);
+  console.log(`  + ${dir}: ${motif.layers.length} Ebenen · Farbregler: ${slots.join(', ') || 'keine'}` +
+              (varis.length ? ` · Varianten: ${varis.join('; ')}` : ''));
 }
 
 fs.writeFileSync(path.join(ROOT, 'index.json'), JSON.stringify({ motive }, null, 2));

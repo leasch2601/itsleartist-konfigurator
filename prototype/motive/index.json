@@ -1,21 +1,29 @@
 {
   "motive": [
     {
-      "slug": "appaloosa-portrait",
-      "name": "Appaloosa portrait",
+      "slug": "portrait-locken",
+      "name": "Portrait locken",
       "preview": "_vorschau.png",
       "layers": [
         {
           "file": "10_fell.png",
           "order": 10,
+          "variant": null,
           "blend": "source-over",
           "role": "tint",
           "slot": "fell",
-          "label": "Fell"
+          "label": "Fell",
+          "variants": [
+            {
+              "name": "appaloosa",
+              "file": "10_fell~appaloosa.png"
+            }
+          ]
         },
         {
           "file": "20_maehne.png",
           "order": 20,
+          "variant": null,
           "blend": "source-over",
           "role": "tint",
           "slot": "maehne",
@@ -24,20 +32,23 @@
         {
           "file": "40_schatten_multiply.png",
           "order": 40,
+          "variant": null,
           "blend": "multiply",
           "role": "fixed",
-          "label": "Schatten"
+          "label": "Schattierung"
         },
         {
           "file": "50_detail_overlay.png",
           "order": 50,
+          "variant": null,
           "blend": "overlay",
           "role": "fixed",
-          "label": "Detail"
+          "label": "Details"
         },
         {
           "file": "60_glanz_dodge.png",
           "order": 60,
+          "variant": null,
           "blend": "color-dodge",
           "role": "fixed",
           "label": "Glanz"
@@ -45,10 +56,27 @@
         {
           "file": "70_highlight_add.png",
           "order": 70,
+          "variant": null,
           "blend": "lighter",
           "role": "tint",
           "slot": "licht",
-          "label": "Licht"
+          "label": "Highlights"
+        },
+        {
+          "file": "80_augenreflex.png",
+          "order": 80,
+          "variant": null,
+          "blend": "source-over",
+          "role": "fixed",
+          "label": "Augenglanz"
+        },
+        {
+          "file": "90_outline.png",
+          "order": 90,
+          "variant": null,
+          "blend": "source-over",
+          "role": "fixed",
+          "label": "Outline"
         }
       ]
     }
