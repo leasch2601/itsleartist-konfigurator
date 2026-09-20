@@ -1,18 +1,18 @@
-import { buildStructureMap, applyColor, applyColorRegions, rgbToHsl, hslToRgb, hexToRgb } from './recolor.js';
+import {
+  buildStructureMap, applyColor, applyColorRegions,
+  buildPatternMap, applyPatternColor,
+  rgbToHsl, hslToRgb, hexToRgb, withAlpha,
+} from './recolor.js';
 
 const SIZE = 1000;
 
-// Reihenfolge, Standardfarbe und Regler je Ebenen-Rolle.
-// `auto` bedeutet: kein eigener Farbwaehler, die Farbe folgt anderen Ebenen.
+// Standard ist ein Falbe.
 const SLOTS = {
-  fell:      { label: 'Fell',      default: '#9c6b4a', order: 1, slider: 'zeichnung' },
-  tupfen:    { label: 'Tupfen',    default: '#3a2f2a', order: 2, slider: 'zeichnung' },
+  fell:      { label: 'Fell',      default: '#c19a62', order: 1, slider: 'zeichnung' },
   abzeichen: { label: 'Abzeichen', default: '#f0e6dc', order: 3, slider: 'zeichnung' },
-  // Die Maehne soll standardmaessig durchgefaerbt sein, nicht mit dem
-  // gemalten Hell-Dunkel-Verlauf. Wer ihn will, zieht den Regler auf.
-  maehne:    { label: 'Mähne',     default: '#2e2529', order: 4, slider: 'zeichnung', sliderDef: 0 },
-  auge:      { label: 'Augen',     default: '#5c7f9e', order: 5, slider: null },
-  licht:     { label: 'Licht',     default: '#ffeedb', order: 6, slider: 'staerke' },
+  maehne:    { label: 'Mähne',     default: '#3a2c1e', order: 4, slider: 'zeichnung', sliderDef: 0 },
+  auge:      { label: 'Augen',     default: '#4a3b2e', order: 5, slider: null },
+  licht:     { label: 'Licht',     default: '#ffe9bd', order: 6, slider: 'staerke' },
   outline:   { label: 'Outline',   order: 7, slider: 'kontur', auto: 'fell' },
 };
 
@@ -21,6 +21,9 @@ const SLIDER = {
   staerke:   { label: 'Stärke',    min: 0,  max: 100, def: 70 },
   kontur:    { label: 'Kontrast',  min: 10, max: 100, def: 42 },
 };
+
+// Neutraler Wert je Blendmodus: dort tut die Ebene nichts.
+const NEUTRAL = { multiply: 1, screen: 0, 'color-dodge': 0, lighter: 0, overlay: 0.5 };
 
 const PRESETS = [
   { name: 'Rappe',         fell: '#34303a', maehne: '#15131a', licht: '#b9c6e0', auge: '#4a3b2e' },
@@ -34,9 +37,27 @@ const PRESETS = [
   { name: 'Blue Roan',     fell: '#6e7684', maehne: '#22242b', licht: '#cfe0f5', auge: '#4a3b2e' },
 ];
 
-const DEFAULTS = { bg1: '#f3e7e6', bg2: '#d9c6c2', bgStyle: 'radial', bgSeed: 7 };
+// Echte Fellfarben-Familien fuer den Zufall. Ein Pferd ist nie pink oder
+// gruen, deshalb wird nicht im ganzen Farbraum gewuerfelt, sondern innerhalb
+// dieser Spannen - und die Maehne folgt der Regel, die zur Farbe passt.
+const COATS = [
+  { name: 'Rappe',       h: [.69, .76], s: [.03, .11], l: [.12, .20], mane: 'dunkler' },
+  { name: 'Brauner',     h: [.05, .09], s: [.34, .56], l: [.17, .30], mane: 'schwarz' },
+  { name: 'Fuchs',       h: [.04, .08], s: [.44, .66], l: [.30, .42], mane: 'gleich' },
+  { name: 'Dunkelfuchs', h: [.03, .07], s: [.38, .56], l: [.17, .26], mane: 'dunkler' },
+  { name: 'Falbe',       h: [.07, .11], s: [.28, .46], l: [.44, .58], mane: 'schwarz' },
+  { name: 'Palomino',    h: [.08, .11], s: [.42, .62], l: [.54, .66], mane: 'flachs' },
+  { name: 'Schimmel',    h: [.05, .11], s: [.01, .07], l: [.76, .88], mane: 'heller' },
+  { name: 'Grullo',      h: [.07, .11], s: [.04, .12], l: [.46, .58], mane: 'schwarz' },
+  { name: 'Blue Roan',   h: [.56, .65], s: [.05, .15], l: [.40, .53], mane: 'schwarz' },
+  { name: 'Cremello',    h: [.08, .12], s: [.18, .34], l: [.84, .92], mane: 'heller' },
+  { name: 'Rotschimmel', h: [.01, .05], s: [.16, .30], l: [.58, .70], mane: 'dunkler' },
+];
 
-const state = { colors: {}, sliders: {}, extras: {}, ...DEFAULTS };
+const DEFAULTS = { bg1: '#f3e7e6', bg2: '#d9c6c2', bgStyle: 'radial', bgSeed: 7 };
+const EXTRA_DEFAULT_COLOR = '#4f4a46';
+
+const state = { colors: {}, sliders: {}, extraColors: {}, ...DEFAULTS };
 
 const out = document.getElementById('out');
 const ctx = out.getContext('2d');
@@ -46,10 +67,39 @@ let catalogue = [];
 let motif = null;
 let prepared = [];
 
+const toHex = ([r, g, b]) =>
+  '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+
+/* ---------------- Zufall in echten Fellfarben ---------------- */
+
+const between = ([a, b]) => a + Math.random() * (b - a);
+
+function randomCoat() {
+  const c = COATS[(Math.random() * COATS.length) | 0];
+  const h = between(c.h), s = between(c.s), l = between(c.l);
+  const fell = toHex(hslToRgb(h, s, l));
+
+  let maehne;
+  switch (c.mane) {
+    case 'schwarz': maehne = toHex(hslToRgb(h, Math.min(.18, s * .4), .08 + Math.random() * .06)); break;
+    case 'dunkler': maehne = toHex(hslToRgb(h, s, Math.max(.05, l * (.5 + Math.random() * .2)))); break;
+    case 'flachs':  maehne = toHex(hslToRgb(h, s * .35, Math.min(.94, l + .26 + Math.random() * .08))); break;
+    case 'heller':  maehne = toHex(hslToRgb(h, s * .7, Math.min(.95, l + .06 + Math.random() * .06))); break;
+    default:        maehne = toHex(hslToRgb(h, s, Math.max(.08, l - .08 - Math.random() * .08)));
+  }
+
+  // Pferdeaugen sind fast immer braun; sehr helle Farben tragen gelegentlich blau.
+  const blau = l > .8 && Math.random() < .45;
+  const auge = blau
+    ? toHex(hslToRgb(.56 + Math.random() * .04, .22 + Math.random() * .18, .42 + Math.random() * .12))
+    : toHex(hslToRgb(.07 + Math.random() * .03, .22 + Math.random() * .18, .17 + Math.random() * .10));
+
+  const licht = toHex(hslToRgb(.08 + Math.random() * .05, .14 + Math.random() * .22, .88 + Math.random() * .08));
+  return { fell, maehne, auge, licht };
+}
+
 /* ---------------- Hintergrund ---------------- */
 
-// Fester Zufall: derselbe Startwert liefert immer dasselbe Muster, sonst
-// wuerde der Hintergrund bei jedem Neuzeichnen flackern.
 function seeded(seed) {
   let a = seed >>> 0;
   return () => {
@@ -96,32 +146,32 @@ const BG_PAINTERS = {
   vignette(c, S, a, b) {
     c.fillStyle = a; c.fillRect(0, 0, S, S);
     const g = c.createRadialGradient(S * .5, S * .5, S * .28, S * .5, S * .5, S * .72);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, b);
+    g.addColorStop(0, withAlpha(b, 0)); g.addColorStop(1, b);
     c.fillStyle = g; c.fillRect(0, 0, S, S);
   },
 
-  // Unregelmaessige, weiche Flecken - wirkt handgemalt statt technisch
   wolken(c, S, a, b, rand) {
     c.fillStyle = a; c.fillRect(0, 0, S, S);
     for (let i = 0; i < 9; i++) {
       const x = rand() * S, y = rand() * S;
       const r = S * (0.18 + rand() * 0.34);
       const g = c.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, b); g.addColorStop(1, 'rgba(0,0,0,0)');
+      g.addColorStop(0, withAlpha(b, 1)); g.addColorStop(1, withAlpha(b, 0));
       c.globalAlpha = 0.20 + rand() * 0.30;
       c.fillStyle = g; c.fillRect(0, 0, S, S);
     }
     c.globalAlpha = 1;
   },
 
-  // Ineinanderlaufende Lasuren, wie eine Aquarellwaesche
   aquarell(c, S, a, b, rand) {
     c.fillStyle = a; c.fillRect(0, 0, S, S);
     for (let i = 0; i < 16; i++) {
       const x = rand() * S, y = rand() * S;
       const rx = S * (0.10 + rand() * 0.28), ry = rx * (0.55 + rand() * 0.8);
       const g = c.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
-      g.addColorStop(0, b); g.addColorStop(0.65, b); g.addColorStop(1, 'rgba(0,0,0,0)');
+      g.addColorStop(0, withAlpha(b, 1));
+      g.addColorStop(0.62, withAlpha(b, 1));
+      g.addColorStop(1, withAlpha(b, 0));
       c.globalAlpha = 0.07 + rand() * 0.10;
       c.save();
       c.translate(x, y); c.rotate(rand() * Math.PI); c.scale(1, ry / rx); c.translate(-x, -y);
@@ -131,7 +181,6 @@ const BG_PAINTERS = {
     c.globalAlpha = 1;
   },
 
-  // Angelehnt an die Streifen auf leartist.netlify.app
   streifen(c, S, a, b) {
     c.fillStyle = a; c.fillRect(0, 0, S, S);
     c.fillStyle = b;
@@ -156,10 +205,8 @@ const BG_PAINTERS = {
   },
 };
 
-function paintBackground() {
-  const painter = BG_PAINTERS[state.bgStyle] || BG_PAINTERS.radial;
-  painter(ctx, SIZE, state.bg1, state.bg2, seeded(state.bgSeed));
-}
+const paintBackground = () =>
+  (BG_PAINTERS[state.bgStyle] || BG_PAINTERS.radial)(ctx, SIZE, state.bg1, state.bg2, seeded(state.bgSeed));
 
 /* ---------------- Ebenen laden ---------------- */
 
@@ -176,32 +223,38 @@ const loadImage = (src) => new Promise((res, rej) => {
   img.src = src;
 });
 
-const toHex = ([r, g, b]) =>
-  '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
-
-/** Dunklere Fassung einer Farbe - Grundlage aller abgeleiteten Konturfarben. */
 function darken(hex, k) {
   const [h, s, l] = rgbToHsl(...hexToRgb(hex));
   return toHex(hslToRgb(h, Math.min(1, s * 0.85), Math.min(0.92, Math.max(0.03, l * k))));
 }
 
-async function prepareLayer(def, base, file) {
-  const img = await loadImage(`${base}/${file || def.file}`);
+const extraKey = (def) => def.file.match(/extra-([a-z0-9-]+)/i)?.[1] ?? def.label.toLowerCase();
+
+async function prepareLayer(def, base) {
+  const img = await loadImage(`${base}/${def.file}`);
   const canvas = newCanvas();
   const cx = canvas.getContext('2d', { willReadFrequently: true });
   cx.drawImage(img, 0, 0, SIZE, SIZE);
 
   const entry = {
     def, canvas,
-    on: !def.optional,          // Zusatzmuster starten ausgeschaltet
+    on: !def.optional,
     strength: 1,
     native: `${img.naturalWidth}×${img.naturalHeight}`,
   };
+
   if (def.role === 'tint') {
     entry.map = buildStructureMap(cx.getImageData(0, 0, SIZE, SIZE));
     entry.target = newCanvas();
     entry.targetCtx = entry.target.getContext('2d');
     entry.buffer = new ImageData(SIZE, SIZE);
+  } else if (def.role === 'extra') {
+    entry.key = extraKey(def);
+    entry.map = buildPatternMap(cx.getImageData(0, 0, SIZE, SIZE), NEUTRAL[def.blend] ?? 0.5);
+    entry.target = newCanvas();
+    entry.targetCtx = entry.target.getContext('2d');
+    entry.buffer = new ImageData(SIZE, SIZE);
+    if (state.extraColors[entry.key] === undefined) state.extraColors[entry.key] = EXTRA_DEFAULT_COLOR;
   }
   return entry;
 }
@@ -268,8 +321,10 @@ function render() {
     ctx.globalAlpha = 1;
 
     if (e.def.role === 'extra') {
+      applyPatternColor(e.map, state.extraColors[e.key], e.buffer);
+      e.targetCtx.putImageData(e.buffer, 0, 0);
       ctx.globalAlpha = e.strength;
-      ctx.drawImage(e.canvas, 0, 0);
+      ctx.drawImage(e.target, 0, 0);
       continue;
     }
 
@@ -279,9 +334,6 @@ function render() {
     const cfg = SLOTS[slot];
 
     if (slot === 'outline') {
-      // Die Kontur folgt dem, worueber sie liegt: dem Fell, der Maehne - und
-      // ueber dem Auge bleibt sie bewusst dunkel, damit der Blick Zeichnung
-      // behaelt, auch wenn das Pferd fast weiss ist.
       const regions = [];
       if (maneEntry?.on && maneEntry.map) {
         regions.push({ mask: maneEntry.map.alpha, hex: darken(state.colors.maehne, k) });
@@ -291,8 +343,8 @@ function render() {
       }
       applyColorRegions(e.map, darken(state.colors.fell, k), regions, 0.35, e.buffer);
     } else {
-      const contrast = cfg.slider === 'zeichnung' ? state.sliders[slot] : 0.85;
-      applyColor(e.map, state.colors[slot], contrast, e.buffer);
+      applyColor(e.map, state.colors[slot],
+        cfg.slider === 'zeichnung' ? state.sliders[slot] : 0.85, e.buffer);
     }
 
     e.targetCtx.putImageData(e.buffer, 0, 0);
@@ -315,6 +367,24 @@ const scheduleRender = () => {
 const colorFor = (slot) =>
   SLOTS[slot].auto ? darken(state.colors[SLOTS[slot].auto], state.sliders[slot]) : state.colors[slot];
 
+function colorRow(value, onInput, auto) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  if (auto) {
+    const dot = document.createElement('span');
+    dot.className = 'swatch-auto';
+    dot.title = 'folgt Fell, Mähne und Augen';
+    row.appendChild(dot);
+  } else {
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = value;
+    input.oninput = () => onInput(input.value);
+    row.appendChild(input);
+  }
+  return row;
+}
+
 function buildColorFields() {
   const host = document.getElementById('colorFields');
   host.innerHTML = '';
@@ -327,32 +397,11 @@ function buildColorFields() {
 
     const head = document.createElement('div');
     head.className = 'field-head';
-    const name = document.createElement('span');
-    name.className = 'name';
-    name.textContent = cfg.label;
-    const read = document.createElement('span');
-    read.className = 'read';
-    head.append(name, read);
+    head.innerHTML = `<span class="name">${cfg.label}</span><span class="read"></span>`;
 
-    const row = document.createElement('div');
-    row.className = 'row';
-
-    if (cfg.auto) {
-      const dot = document.createElement('span');
-      dot.className = 'swatch-auto';
-      dot.title = `folgt Fell, Mähne und Augen`;
-      row.appendChild(dot);
-    } else {
-      const colorInput = document.createElement('input');
-      colorInput.type = 'color';
-      colorInput.value = state.colors[slot];
-      colorInput.oninput = () => {
-        state.colors[slot] = colorInput.value;
-        refreshReadouts();
-        scheduleRender();
-      };
-      row.appendChild(colorInput);
-    }
+    const row = colorRow(cfg.auto ? null : state.colors[slot], (v) => {
+      state.colors[slot] = v; refreshReadouts(); scheduleRender();
+    }, cfg.auto);
 
     if (cfg.slider) {
       const s = SLIDER[cfg.slider];
@@ -362,8 +411,7 @@ function buildColorFields() {
       range.value = Math.round(state.sliders[slot] * 100);
       range.oninput = () => {
         state.sliders[slot] = range.value / 100;
-        refreshReadouts();
-        scheduleRender();
+        refreshReadouts(); scheduleRender();
       };
       row.appendChild(range);
     }
@@ -406,36 +454,32 @@ function buildExtras() {
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = e.on;
-    const name = document.createElement('span');
-    name.className = 'name';
-    name.textContent = e.def.label;
     const read = document.createElement('span');
     read.className = 'read';
-    read.textContent = `${Math.round(e.strength * 100)}%`;
-    head.append(cb, name, read);
+    const setRead = () =>
+      (read.textContent = `${state.extraColors[e.key].toUpperCase()} · Stärke ${Math.round(e.strength * 100)}%`);
+    head.append(cb, Object.assign(document.createElement('span'),
+      { className: 'name', textContent: e.def.label }), read);
+
+    const row = colorRow(state.extraColors[e.key], (v) => {
+      state.extraColors[e.key] = v; setRead(); scheduleRender();
+    });
+    const colorInput = row.querySelector('input[type=color]');
 
     const range = document.createElement('input');
     range.type = 'range';
     range.min = 0; range.max = 100;
     range.value = Math.round(e.strength * 100);
-    range.disabled = !e.on;
-    range.oninput = () => {
-      e.strength = range.value / 100;
-      read.textContent = `${range.value}%`;
-      scheduleRender();
-    };
-    cb.onchange = () => {
-      e.on = cb.checked;
-      range.disabled = !e.on;
-      state.extras[e.def.label] = e.on;
-      buildLayerList();
-      scheduleRender();
-    };
-
-    const row = document.createElement('div');
-    row.className = 'row';
+    range.oninput = () => { e.strength = range.value / 100; setRead(); scheduleRender(); };
     row.appendChild(range);
 
+    const setEnabled = () => {
+      range.disabled = colorInput.disabled = !e.on;
+      field.classList.toggle('off', !e.on);
+    };
+    cb.onchange = () => { e.on = cb.checked; setEnabled(); buildLayerList(); scheduleRender(); };
+
+    setRead(); setEnabled();
     field.append(head, row);
     host.appendChild(field);
   }
@@ -443,16 +487,10 @@ function buildExtras() {
 
 function applyPreset(p) {
   for (const slot of activeSlots()) if (!SLOTS[slot].auto && p[slot]) state.colors[slot] = p[slot];
-  // Vorlagen duerfen Zusatzmuster mitbringen - ein Apfelschimmel ohne Äpfel
-  // waere schliesslich nur ein Schimmel.
   for (const e of prepared.filter((x) => x.def.role === 'extra')) {
-    const key = e.def.file.match(/extra-([a-z0-9-]+)/i)?.[1];
-    e.on = Boolean(p.extras && key && p.extras.includes(key));
+    e.on = Boolean(p.extras && p.extras.includes(e.key));
   }
-  refreshReadouts();
-  buildExtras();
-  buildLayerList();
-  scheduleRender();
+  refreshReadouts(); buildExtras(); buildLayerList(); scheduleRender();
 }
 
 function buildPresets() {
@@ -476,16 +514,9 @@ function buildBgStyles() {
     const prev = document.createElement('canvas');
     prev.width = prev.height = 72;
     prev.className = 'swatch';
-    const pc = prev.getContext('2d');
-    (BG_PAINTERS[t.id])(pc, 72, state.bg1, state.bg2, seeded(state.bgSeed));
-    b.appendChild(prev);
-    b.appendChild(document.createTextNode(t.label));
-    b.onclick = () => {
-      state.bgStyle = t.id;
-      buildBgStyles();
-      document.getElementById('btnSeed').hidden = !BG_STYLES.find((x) => x.id === t.id).random;
-      scheduleRender();
-    };
+    BG_PAINTERS[t.id](prev.getContext('2d'), 72, state.bg1, state.bg2, seeded(state.bgSeed));
+    b.append(prev, document.createTextNode(t.label));
+    b.onclick = () => { state.bgStyle = t.id; buildBgStyles(); scheduleRender(); };
     host.appendChild(b);
   }
   document.getElementById('btnSeed').hidden = !BG_STYLES.find((x) => x.id === state.bgStyle).random;
@@ -516,42 +547,31 @@ function buildLayerList() {
       : e.def.role === 'tint' ? (SLOTS[e.def.slot]?.auto ? 'abgeleitet · ' + e.def.blend : 'einfärbbar')
       : e.def.blend.replace('source-over', 'normal');
     row.innerHTML = `<input type="checkbox" ${e.on ? 'checked' : ''}>
-      <span class="nm">${e.def.label}</span>
-      <span class="mode">${mode}</span>`;
+      <span class="nm">${e.def.label}</span><span class="mode">${mode}</span>`;
     row.querySelector('input').onchange = (ev) => {
-      e.on = ev.target.checked;
-      buildExtras();
-      scheduleRender();
+      e.on = ev.target.checked; buildExtras(); scheduleRender();
     };
     host.appendChild(row);
   }
 }
 
 function bindControls() {
-  const bgInput = (id, key) => {
+  for (const id of ['bg1', 'bg2']) {
     document.getElementById(id).oninput = (e) => {
-      state[key] = e.target.value;
-      buildBgStyles();
-      scheduleRender();
+      state[id] = e.target.value; buildBgStyles(); scheduleRender();
     };
-  };
-  bgInput('bg1', 'bg1');
-  bgInput('bg2', 'bg2');
-
+  }
   document.getElementById('btnSeed').onclick = () => {
     state.bgSeed = (Math.random() * 1e9) | 0;
-    buildBgStyles();
-    scheduleRender();
+    buildBgStyles(); scheduleRender();
   };
   document.getElementById('btnCompare').onclick = (e) => {
-    const on = document.getElementById('stage').classList.toggle('compare');
-    e.target.classList.toggle('on', on);
+    e.target.classList.toggle('on', document.getElementById('stage').classList.toggle('compare'));
   };
   document.getElementById('btnRandom').onclick = () => {
-    const rnd = () => '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-    for (const slot of activeSlots()) if (!SLOTS[slot].auto) state.colors[slot] = rnd();
-    refreshReadouts();
-    scheduleRender();
+    const coat = randomCoat();
+    for (const slot of activeSlots()) if (!SLOTS[slot].auto && coat[slot]) state.colors[slot] = coat[slot];
+    refreshReadouts(); scheduleRender();
   };
   document.getElementById('btnReset').onclick = () => {
     for (const slot of activeSlots()) {
@@ -559,15 +579,15 @@ function bindControls() {
       if (!cfg.auto) state.colors[slot] = cfg.default;
       if (cfg.slider) state.sliders[slot] = (cfg.sliderDef ?? SLIDER[cfg.slider].def) / 100;
     }
-    for (const e of prepared) e.on = !e.def.optional;
+    for (const e of prepared) {
+      e.on = !e.def.optional;
+      e.strength = 1;
+      if (e.key) state.extraColors[e.key] = EXTRA_DEFAULT_COLOR;
+    }
     Object.assign(state, DEFAULTS);
     document.getElementById('bg1').value = DEFAULTS.bg1;
     document.getElementById('bg2').value = DEFAULTS.bg2;
-    buildBgStyles();
-    buildColorFields();
-    buildExtras();
-    buildLayerList();
-    scheduleRender();
+    buildBgStyles(); buildColorFields(); buildExtras(); buildLayerList(); scheduleRender();
   };
   document.getElementById('btnDownload').onclick = () => {
     const a = document.createElement('a');
@@ -596,4 +616,5 @@ function bindControls() {
     return;
   }
   await selectMotif(catalogue[0]);
+  document.body.classList.add('ready');
 })();

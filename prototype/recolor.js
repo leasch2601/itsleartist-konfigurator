@@ -204,3 +204,75 @@ export function applyColorRegions(map, baseHex, regions, contrast = 0.35, out) {
 export function alphaMask(map) {
   return map.alpha;
 }
+
+/* ---------------- Muster-Ebenen ---------------- */
+
+/**
+ * Musterebenen (Tupfen, Sprenkel) funktionieren anders als Farbflaechen:
+ * Ihr Blendmodus hat einen *neutralen* Wert, bei dem sie nichts tun -
+ * Weiss bei Multiply, mittleres Grau bei Overlay. Dieser Wert muss beim
+ * Einfaerben unangetastet bleiben, sonst legt sich die gewaehlte Farbe als
+ * Schleier ueber das ganze Pferd statt nur auf die Tupfen.
+ *
+ * Deshalb wird hier die Helligkeit jedes Bildpunkts *nicht* verschoben.
+ * Gefaerbt wird nur, wie weit er vom neutralen Wert entfernt ist.
+ */
+export function buildPatternMap(imageData, neutral = 0.5) {
+  const { data, width, height } = imageData;
+  const n = width * height;
+  const lum = new Float32Array(n);
+  const alpha = new Uint8ClampedArray(n);
+
+  let maxDev = 0;
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    const a = data[o + 3];
+    alpha[i] = a;
+    if (a === 0) continue;
+    const L = (0.2126 * data[o] + 0.7152 * data[o + 1] + 0.0722 * data[o + 2]) / 255;
+    lum[i] = L;
+    const dev = Math.abs(L - neutral) * (a / 255);
+    if (dev > maxDev) maxDev = dev;
+  }
+  return { lum, alpha, width, height, neutral, maxDev: Math.max(maxDev, 0.05) };
+}
+
+/**
+ * Faerbt ein Muster ein, ohne seine Helligkeit zu verschieben.
+ * Die Saettigung waechst mit dem Abstand zum neutralen Wert: neutrale
+ * Flaechen bleiben neutral, nur die gezeichneten Marken nehmen die Farbe an.
+ * Eine graue Wahl ergibt exakt das Original.
+ */
+export function applyPatternColor(map, hexColor, out) {
+  const { lum, alpha, width, height, neutral, maxDev } = map;
+  const n = width * height;
+  const result = out || new ImageData(width, height);
+  const data = result.data;
+
+  const [h, s] = rgbToHsl(...hexToRgb(hexColor));
+
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    const a = alpha[i];
+    if (a === 0) { data[o] = data[o + 1] = data[o + 2] = data[o + 3] = 0; continue; }
+
+    const L = lum[i];
+    const dev = Math.min(1, Math.abs(L - neutral) / maxDev);
+    const [r, g, b] = hslToRgb(h, s * dev, L);
+    data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = a;
+  }
+  return result;
+}
+
+/**
+ * Farbe mit Deckkraft als CSS-Zeichenkette.
+ *
+ * Wichtig fuer Farbverlaeufe: "rgba(0,0,0,0)" als Endpunkt laesst den Verlauf
+ * durch Schwarz laufen, weil Canvas zwischen den *Farbwerten* interpoliert und
+ * nicht nur zwischen den Deckkraeften. Ein Verlauf muss deshalb in derselben
+ * Farbe auslaufen, nur mit Deckkraft null.
+ */
+export function withAlpha(hex, a) {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}

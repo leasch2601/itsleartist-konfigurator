@@ -73,9 +73,9 @@ oder Sprenkel kommen als eigene, zuschaltbare Ebenen darüber:
 13_extra-stichelhaar_overlay.png ← weitere Muster
 ```
 
-Alles mit dem Präfix `extra-` wird zu einem Häkchen im Konfigurator, das der
-Kunde dazuschalten kann, mit einem Regler für die Stärke. Diese Ebenen starten
-**ausgeschaltet** und bekommen keinen eigenen Farbwähler.
+Alles mit dem Präfix `extra-` wird zu einem Schalter im Konfigurator, den der
+Kunde umlegen kann — mit eigenem Farbwähler und einem Regler für die Stärke.
+Diese Ebenen starten **ausgeschaltet**.
 
 Der Blendmodus entscheidet, wie du sie malst:
 
@@ -84,8 +84,19 @@ Der Blendmodus entscheidet, wie du sie malst:
 - **Multiply** für rein dunkle Muster. Weiss ist neutral. Ideal für Sprenkel
   und Stichelhaar.
 
-Weil die Muster nicht eingefärbt werden, wandern sie nicht mit der Fellfarbe
-mit, sondern liegen als echte Zeichnung darüber — auf jedem Fell gleich.
+### Wie Muster eingefärbt werden
+
+Anders als beim Fell wird beim Muster die **Helligkeit nicht verschoben**, nur
+die Farbigkeit. Das ist notwendig, weil jeder Blendmodus einen neutralen Wert
+hat, bei dem die Ebene nichts tut — Weiss bei Multiply, mittleres Grau bei
+Overlay. Würde man diesen Wert mitfärben, legte sich die gewählte Farbe als
+Schleier über das ganze Pferd statt nur auf die Tupfen.
+
+Die Sättigung wächst deshalb mit dem Abstand zum neutralen Wert: Neutrale
+Flächen bleiben neutral, nur die gezeichneten Marken nehmen die Farbe an. Eine
+graue Wahl ergibt exakt dein Original.
+
+Praktisch heisst das: Male Muster ruhig in Grautönen. Die Farbe kommt später.
 
 ## Wie stark darf die Ebene durchgemalt sein?
 
