@@ -33,6 +33,9 @@ const TINT = {
   mahne: 'maehne',
   auge: 'auge',
   highlight: 'licht',
+  // Die Outline bekommt keinen eigenen Farbwaehler: ihre Farbe wird aus der
+  // Fellfarbe abgeleitet, damit sie bei hellen Pferden nicht ueberkontrastiert.
+  outline: 'outline',
 };
 
 const LABEL = {

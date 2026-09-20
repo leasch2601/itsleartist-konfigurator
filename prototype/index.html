@@ -6,7 +6,8 @@
 <title>Leartist — Logo-Konfigurator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Italianno&family=Montserrat:wght@300;400;500;600&family=Playfair+Display:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://use.typekit.net/vun7ytb.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:      #faf8f5;   /* warmes Off-White der Webseite */
@@ -18,8 +19,8 @@
     --rose-lt: #f0dedf;
     --line:    #e9e3dc;
     --sans: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    --serif: "Playfair Display", Georgia, serif;
-    --script: "Italianno", cursive;
+    --serif: "miller-banner-compressed", Georgia, serif;
+    --script: "american-scribe", cursive;
   }
   * { box-sizing: border-box; }
   html, body { background: var(--bg); }
@@ -32,7 +33,7 @@
     background: var(--surface); border-bottom: 1px solid var(--line);
     padding: 20px 40px; display: flex; align-items: baseline; gap: 18px;
   }
-  .brand { font: 400 42px/1 var(--script); color: var(--ink); }
+  .brand { font: 400 30px/1 var(--script); color: var(--ink); }
   header .tag {
     font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
     color: var(--muted); font-weight: 500;
@@ -80,6 +81,11 @@
   }
   input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
   input[type=color]::-webkit-color-swatch { border: none; border-radius: 50%; }
+
+  .swatch-auto {
+    width: 44px; height: 44px; flex: none; border-radius: 50%;
+    border: 1px dashed var(--line); background: var(--line);
+  }
 
   input[type=range] {
     flex: 1; min-width: 0; -webkit-appearance: none; appearance: none;

@@ -1,48 +1,56 @@
 <!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8"><title>Farbvarianten</title>
+<link rel="stylesheet" href="https://use.typekit.net/vun7ytb.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  body { margin:0; background:#14131a; color:#ece9f1;
-         font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:18px; }
-  h1 { font-size:15px; margin:0 0 4px; }
-  p.sub { color:#9c96ab; font-size:12px; margin:0 0 16px; }
-  .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+  body { margin:0; background:#faf8f5; color:#1e1d1d;
+         font:400 13px Montserrat,-apple-system,sans-serif; padding:22px; }
+  h1 { font:400 30px/1 "american-scribe",cursive; margin:0 0 2px; }
+  p.sub { color:#8b857f; font-size:12px; margin:0 0 18px; }
+  .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
   figure { margin:0; }
-  canvas, img.ref { width:100%; aspect-ratio:1; display:block; border-radius:9px; border:1px solid #37333f; }
-  figcaption { margin-top:6px; font-size:11px; color:#9c96ab; text-align:center; }
-  figure.orig figcaption { color:#c9a227; font-weight:600; }
+  canvas, img.ref { width:100%; aspect-ratio:1; display:block;
+                    border:1px solid #e9e3dc; background:#fff; }
+  figcaption { margin-top:7px; font-size:11px; color:#8b857f; text-align:center;
+               letter-spacing:.06em; }
+  figure.orig figcaption { color:#b07f82; font-weight:500; }
 </style></head>
 <body>
-<h1>Ein und dieselben Ebenen — zehn Farbvarianten</h1>
-<p class="sub">Alles live im Browser gerechnet. Keine vorgerenderten Dateien, keine KI.</p>
+<h1>Leartist</h1>
+<p class="sub">Ein Ebenensatz, neun Fellfarben — alles live im Browser gerechnet.</p>
 <div class="grid" id="grid"></div>
 <script type="module">
-import { buildStructureMap, applyColor } from './recolor.js';
+import { buildStructureMap, applyColor, rgbToHsl, hslToRgb, hexToRgb } from './recolor.js';
 const S = 500;
-const BASE = 'motive/portrait-locken';
-const LAYERS = [
-  { file:'10_fell.png',              role:'tint',  color:'fur',   blend:'source-over' },
-  { file:'20_maehne.png',            role:'tint',  color:'mane',  blend:'source-over' },
-  { file:'40_schatten_multiply.png', role:'fixed', blend:'multiply' },
-  { file:'50_detail_overlay.png',    role:'fixed', blend:'overlay' },
-  { file:'60_glanz_dodge.png',       role:'fixed', blend:'color-dodge' },
-  { file:'70_highlight_add.png',     role:'tint',  color:'light', blend:'lighter', alpha:0.7 },
-  { file:'80_augenreflex.png',       role:'fixed', blend:'source-over' },
-  { file:'90_outline.png',           role:'fixed', blend:'source-over' },
-];
+
+// Farben und Ableitung identisch zum Konfigurator halten
 const VARIANTS = [
-  { name:'Rappe',     fur:'#2f2b34', mane:'#15131a', light:'#b9c6e0', bg:['#2a2b38','#0b0c12'] },
-  { name:'Fuchs',     fur:'#a4562a', mane:'#7a3c18', light:'#ffd9a0', bg:['#3a2a20','#120b07'] },
-  { name:'Falbe',     fur:'#c49a5e', mane:'#3a2c1e', light:'#ffe9bd', bg:['#3a3225','#12100a'] },
-  { name:'Schimmel',  fur:'#ded9d6', mane:'#f1ece8', light:'#ffffff', bg:['#343040','#101018'] },
-  { name:'Palomino',  fur:'#d8a866', mane:'#f4ead6', light:'#fff3d6', bg:['#3d3324','#14100a'] },
-  { name:'Blue Roan', fur:'#6e7d94', mane:'#1e2129', light:'#cfe0f5', bg:['#232a36','#0a0d12'] },
-  { name:'Nebel',     fur:'#8b7bb5', mane:'#2e2545', light:'#e6d4ff', bg:['#312a4a','#0f0b1a'] },
-  { name:'Koralle',   fur:'#d76a68', mane:'#4a1f2c', light:'#ffd0c4', bg:['#3d2028','#14080d'] },
-  { name:'Mint',      fur:'#79b8a4', mane:'#1f3a35', light:'#d9fff2', bg:['#20352f','#080f0d'] },
+  { name:'Rappe',       fell:'#34303a', maehne:'#15131a', licht:'#b9c6e0', auge:'#4a3b2e', bg:['#efe9e6','#cfc4bf'] },
+  { name:'Brauner',     fell:'#5c3a20', maehne:'#1a1512', licht:'#e8c9a0', auge:'#4a3728', bg:['#f0e6dc','#cdbaa8'] },
+  { name:'Fuchs',       fell:'#a05a2c', maehne:'#8a4a24', licht:'#ffd9a0', auge:'#5c432c', bg:['#f5e8db','#d8bfa4'] },
+  { name:'Dunkelfuchs', fell:'#5e3722', maehne:'#4a2a19', licht:'#d9a878', auge:'#4a3728', bg:['#efe3d9','#cbb3a2'] },
+  { name:'Falbe',       fell:'#c19a62', maehne:'#3a2c1e', licht:'#ffe9bd', auge:'#4a3b2e', bg:['#f6eddc','#dbc9a9'] },
+  { name:'Palomino',    fell:'#d2a263', maehne:'#f0e4cd', licht:'#fff3d6', auge:'#5c432c', bg:['#f8f0e0','#e0cdb0'] },
+  { name:'Schimmel',    fell:'#d8d2ce', maehne:'#eae4df', licht:'#ffffff', auge:'#4a3b2e', bg:['#f3e7e6','#d9c6c2'] },
+  { name:'Blue Roan',   fell:'#6e7684', maehne:'#22242b', licht:'#cfe0f5', auge:'#4a3b2e', bg:['#e8eaee','#c2c7d0'] },
+  { name:'Rotschimmel', fell:'#b4897e', maehne:'#7d4f45', licht:'#ffe0d4', auge:'#5c432c', bg:['#f4e6e2','#d9bfb8'] },
 ];
+const KONTUR = 0.42;
+
+const toHex = ([r,g,b]) => '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+const outlineColor = (fell) => {
+  const [h,s,l] = rgbToHsl(...hexToRgb(fell));
+  return toHex(hslToRgb(h, Math.min(1,s*0.85), Math.min(0.92, Math.max(0.03, l*KONTUR))));
+};
+
+const catalogue = (await (await fetch('motive/index.json')).json()).motive;
+const motif = catalogue[0];
+const BASE = `motive/${motif.slug}`;
+
 const load = (src) => new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=BASE+'/'+src;});
+
 const prepped = [];
-for (const def of LAYERS) {
+for (const def of motif.layers) {
   const img = await load(def.file);
   const c = document.createElement('canvas'); c.width=c.height=S;
   const cx = c.getContext('2d',{willReadFrequently:true});
@@ -55,20 +63,27 @@ for (const def of LAYERS) {
   }
   prepped.push(e);
 }
+
 const grid = document.getElementById('grid');
 for (const v of VARIANTS) {
   const fig = document.createElement('figure');
   const cv = document.createElement('canvas'); cv.width=cv.height=S;
   const ctx = cv.getContext('2d');
-  const g = ctx.createRadialGradient(S*.5,S*.42,S*.05,S*.5,S*.5,S*.75);
+  const g = ctx.createRadialGradient(S*.5,S*.42,S*.05,S*.5,S*.5,S*.78);
   g.addColorStop(0,v.bg[0]); g.addColorStop(1,v.bg[1]);
   ctx.fillStyle=g; ctx.fillRect(0,0,S,S);
+
   for (const e of prepped) {
     ctx.globalCompositeOperation = e.def.blend;
-    ctx.globalAlpha = e.def.alpha ?? 1;
+    ctx.globalAlpha = 1;
     if (e.def.role==='tint') {
-      applyColor(e.map, v[e.def.color], 0.85, e.buf);
+      const slot = e.def.slot;
+      const isOutline = slot === 'outline';
+      const color = isOutline ? outlineColor(v.fell) : v[slot];
+      if (!color) continue;
+      applyColor(e.map, color, isOutline ? 0.35 : 0.85, e.buf);
       e.tmpCtx.putImageData(e.buf,0,0);
+      if (slot === 'licht') ctx.globalAlpha = 0.7;
       ctx.drawImage(e.tmp,0,0);
     } else ctx.drawImage(e.canvas,0,0);
   }
@@ -76,10 +91,13 @@ for (const v of VARIANTS) {
   const cap = document.createElement('figcaption'); cap.textContent = v.name;
   fig.append(cv, cap); grid.appendChild(fig);
 }
-const fig = document.createElement('figure'); fig.className='orig';
-const im = document.createElement('img'); im.className='ref'; im.src=BASE+'/_vorschau.png';
-const cap = document.createElement('figcaption'); cap.textContent='Dein Original';
-fig.append(im, cap); grid.appendChild(fig);
+
+if (motif.preview) {
+  const fig = document.createElement('figure'); fig.className='orig';
+  const im = document.createElement('img'); im.className='ref'; im.src=`${BASE}/${motif.preview}`;
+  const cap = document.createElement('figcaption'); cap.textContent='Dein Original';
+  fig.append(im, cap); grid.appendChild(fig);
+}
 document.title = 'ready';
 </script>
 </body></html>

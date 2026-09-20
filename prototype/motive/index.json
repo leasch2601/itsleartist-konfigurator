@@ -30,6 +30,15 @@
           "label": "Mähne"
         },
         {
+          "file": "30_auge.png",
+          "order": 30,
+          "variant": null,
+          "blend": "source-over",
+          "role": "tint",
+          "slot": "auge",
+          "label": "Augen"
+        },
+        {
           "file": "40_schatten_multiply.png",
           "order": 40,
           "variant": null,
@@ -63,20 +72,21 @@
           "label": "Highlights"
         },
         {
-          "file": "80_augenreflex.png",
-          "order": 80,
-          "variant": null,
-          "blend": "source-over",
-          "role": "fixed",
-          "label": "Augenglanz"
-        },
-        {
-          "file": "90_outline.png",
+          "file": "90_outline_multiply.png",
           "order": 90,
           "variant": null,
-          "blend": "source-over",
-          "role": "fixed",
+          "blend": "multiply",
+          "role": "tint",
+          "slot": "outline",
           "label": "Outline"
+        },
+        {
+          "file": "95_augenreflex_screen.png",
+          "order": 95,
+          "variant": null,
+          "blend": "screen",
+          "role": "fixed",
+          "label": "Augenglanz"
         }
       ]
     }

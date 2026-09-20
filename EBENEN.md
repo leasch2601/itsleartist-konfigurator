@@ -32,8 +32,8 @@ Die Zahl bestimmt die Stapelreihenfolge (klein = unten), die Rolle entscheidet
 | `50_detail_overlay.png`      | Overlay            | Overlay     | nein        |
 | `60_glanz_dodge.png`         | Colour Dodge       | Color Dodge | nein        |
 | `70_highlight_add.png`       | Highlights         | Hinzufügen  | ja (Licht)  |
-| `80_augenreflex.png`         | Reflex im Auge     | Normal      | nein        |
-| `90_outline.png`             | **Outline**        | Normal      | nein        |
+| `90_outline_multiply.png`    | **Outline**        | Multiply    | abgeleitet  |
+| `95_augenreflex_screen.png`  | Reflex im Auge     | Screen      | nein        |
 
 Optional, wenn du es trennen möchtest:
 
@@ -46,7 +46,15 @@ Optional, wenn du es trennen möchtest:
 
 Sie trägt die gesamte Zeichnung: Augenlid, Nüstern, Muskelkanten,
 Mähnensträhnen. Ohne sie wirkt das Logo wie ein weichgezeichneter Farbfleck.
-Deshalb bekommt sie die höchste Nummer und liegt damit über allem anderen.
+Deshalb bekommt sie eine hohe Nummer und liegt über allem anderen.
+
+Sie liegt auf **Multiply** und bekommt ihre Farbe **automatisch aus der
+Fellfarbe**: je heller das Pferd, desto heller die Kontur. Sonst läge bei
+einem Schimmel eine fast schwarze Linie auf fast weissem Fell, was viel zu
+hart wirkt. Der Regler "Kontrast" bestimmt den Abstand zwischen beiden.
+
+Der Augenglanz liegt als einzige Ebene noch **über** der Outline — sonst
+würde die Multiplikation ihn wegdunkeln.
 
 ## Fellmuster als Variante
 

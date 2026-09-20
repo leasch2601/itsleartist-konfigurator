@@ -1,33 +1,36 @@
-import { buildStructureMap, applyColor } from './recolor.js';
+import { buildStructureMap, applyColor, rgbToHsl, hslToRgb, hexToRgb } from './recolor.js';
 
 const SIZE = 1000;
 
 // Reihenfolge, Standardfarbe und Regler je Ebenen-Rolle.
 // Angezeigt wird nur, was das gewaehlte Motiv tatsaechlich mitbringt.
+// `auto` bedeutet: keine eigene Farbwahl, die Farbe folgt einer anderen Ebene.
 const SLOTS = {
   fell:      { label: 'Fell',      default: '#9c6b4a', order: 1, slider: 'zeichnung' },
   tupfen:    { label: 'Tupfen',    default: '#3a2f2a', order: 2, slider: 'zeichnung' },
   abzeichen: { label: 'Abzeichen', default: '#f0e6dc', order: 3, slider: 'zeichnung' },
   maehne:    { label: 'Mähne',     default: '#2e2529', order: 4, slider: 'zeichnung' },
-  auge:      { label: 'Augen',     default: '#6d8aa8', order: 5, slider: null },
+  auge:      { label: 'Augen',     default: '#5c7f9e', order: 5, slider: null },
   licht:     { label: 'Licht',     default: '#ffeedb', order: 6, slider: 'staerke' },
+  outline:   { label: 'Outline',   order: 7, slider: 'kontur', auto: 'fell' },
 };
 
 const SLIDER = {
-  zeichnung: { label: 'Zeichnung', min: 0, max: 150, def: 85 },
-  staerke:   { label: 'Stärke',    min: 0, max: 100, def: 70 },
+  zeichnung: { label: 'Zeichnung', min: 0,  max: 150, def: 85 },
+  staerke:   { label: 'Stärke',    min: 0,  max: 100, def: 70 },
+  kontur:    { label: 'Kontrast',  min: 10, max: 100, def: 42 },
 };
 
 const PRESETS = [
-  { name: 'Rappe',     fell: '#2f2b34', maehne: '#15131a', licht: '#b9c6e0', auge: '#6b5a48' },
-  { name: 'Fuchs',     fell: '#9c5a2e', maehne: '#6f3618', licht: '#ffd9a0', auge: '#7a5636' },
-  { name: 'Falbe',     fell: '#c49a5e', maehne: '#3a2c1e', licht: '#ffe9bd', auge: '#6b5a48' },
-  { name: 'Schimmel',  fell: '#ded9d6', maehne: '#f1ece8', licht: '#ffffff', auge: '#5f7f9e' },
-  { name: 'Palomino',  fell: '#d8a866', maehne: '#f4ead6', licht: '#fff3d6', auge: '#7a5636' },
-  { name: 'Blue Roan', fell: '#6e7d94', maehne: '#1e2129', licht: '#cfe0f5', auge: '#4a6076' },
-  { name: 'Altrosa',   fell: '#c99a98', maehne: '#6b4448', licht: '#ffe4e0', auge: '#7d5f62' },
-  { name: 'Nebel',     fell: '#8b7bb5', maehne: '#2e2545', licht: '#e6d4ff', auge: '#5f5183' },
-  { name: 'Mint',      fell: '#79b8a4', maehne: '#1f3a35', licht: '#d9fff2', auge: '#3f6b5e' },
+  { name: 'Rappe',       fell: '#34303a', maehne: '#15131a', licht: '#b9c6e0', auge: '#4a3b2e' },
+  { name: 'Brauner',     fell: '#5c3a20', maehne: '#1a1512', licht: '#e8c9a0', auge: '#4a3728' },
+  { name: 'Fuchs',       fell: '#a05a2c', maehne: '#8a4a24', licht: '#ffd9a0', auge: '#5c432c' },
+  { name: 'Dunkelfuchs', fell: '#5e3722', maehne: '#4a2a19', licht: '#d9a878', auge: '#4a3728' },
+  { name: 'Falbe',       fell: '#c19a62', maehne: '#3a2c1e', licht: '#ffe9bd', auge: '#4a3b2e' },
+  { name: 'Palomino',    fell: '#d2a263', maehne: '#f0e4cd', licht: '#fff3d6', auge: '#5c432c' },
+  { name: 'Schimmel',    fell: '#d8d2ce', maehne: '#eae4df', licht: '#ffffff', auge: '#4a3b2e' },
+  { name: 'Blue Roan',   fell: '#6e7684', maehne: '#22242b', licht: '#cfe0f5', auge: '#4a3b2e' },
+  { name: 'Rotschimmel', fell: '#b4897e', maehne: '#7d4f45', licht: '#ffe0d4', auge: '#5c432c' },
 ];
 
 const BG_TYPES = [
@@ -60,6 +63,24 @@ const loadImage = (src) => new Promise((res, rej) => {
   img.onerror = () => rej(new Error(src));
   img.src = src;
 });
+
+const toHex = ([r, g, b]) =>
+  '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+
+/**
+ * Farbe einer abgeleiteten Ebene. Die Outline soll bei einem Schimmel nicht
+ * fast schwarz auf fast weiss liegen, sondern dem Fell folgen: Je heller das
+ * Pferd, desto heller die Kontur. Der Regler bestimmt den Abstand dazwischen.
+ */
+function derivedColor(slot) {
+  const cfg = SLOTS[slot];
+  const source = state.colors[cfg.auto] || SLOTS[cfg.auto].default;
+  const [h, s, l] = rgbToHsl(...hexToRgb(source));
+  const k = state.sliders[slot];
+  return toHex(hslToRgb(h, Math.min(1, s * 0.85), Math.min(0.92, Math.max(0.03, l * k))));
+}
+
+const colorFor = (slot) => (SLOTS[slot].auto ? derivedColor(slot) : state.colors[slot]);
 
 async function prepareLayer(def, base, file) {
   const img = await loadImage(`${base}/${file || def.file}`);
@@ -99,9 +120,9 @@ async function selectMotif(m) {
   document.getElementById('btnCompare').hidden = !m.preview;
 
   for (const slot of activeSlots()) {
-    if (state.colors[slot] === undefined) state.colors[slot] = SLOTS[slot].default;
-    const sl = SLOTS[slot].slider;
-    if (sl && state.sliders[slot] === undefined) state.sliders[slot] = SLIDER[sl].def / 100;
+    const cfg = SLOTS[slot];
+    if (!cfg.auto && state.colors[slot] === undefined) state.colors[slot] = cfg.default;
+    if (cfg.slider && state.sliders[slot] === undefined) state.sliders[slot] = SLIDER[cfg.slider].def / 100;
   }
 
   buildVariants();
@@ -119,9 +140,7 @@ async function selectMotif(m) {
 
 /* ---------------- Fellmuster-Varianten ---------------- */
 
-function variantLayer() {
-  return prepared.find((e) => e.def.variants && e.def.variants.length);
-}
+const variantLayer = () => prepared.find((e) => e.def.variants && e.def.variants.length);
 
 async function setVariant(entry, variantName) {
   const base = `motive/${motif.slug}`;
@@ -135,7 +154,7 @@ async function setVariant(entry, variantName) {
   buildVariants();
   buildLayerList();
   render();
-  statusEl.textContent = variantName ? `Fellmuster: ${variantName}` : 'Fellmuster: einfarbig';
+  statusEl.textContent = variantName ? `Fellmuster: ${cap(variantName)}` : 'Fellmuster: einfarbig';
 }
 
 function buildVariants() {
@@ -188,11 +207,14 @@ function render() {
 
     if (e.def.role === 'tint') {
       const slot = e.def.slot;
-      const sl = SLOTS[slot].slider;
-      const amount = sl ? state.sliders[slot] : 1;
-      applyColor(e.map, state.colors[slot], sl === 'zeichnung' ? amount : 0.85, e.buffer);
+      const cfg = SLOTS[slot];
+      const sl = cfg.slider;
+      // Die Kontur soll gleichmaessig in ihrem Ton liegen, nicht in sich
+      // durchgezeichnet sein - daher fester, niedriger Kontrastwert.
+      const contrast = cfg.auto ? 0.35 : (sl === 'zeichnung' ? state.sliders[slot] : 0.85);
+      applyColor(e.map, colorFor(slot), contrast, e.buffer);
       e.targetCtx.putImageData(e.buffer, 0, 0);
-      ctx.globalAlpha = sl === 'staerke' ? amount : 1;
+      ctx.globalAlpha = sl === 'staerke' ? state.sliders[slot] : 1;
       ctx.drawImage(e.target, 0, 0);
     } else {
       ctx.globalAlpha = 1;
@@ -215,9 +237,8 @@ const scheduleRender = () => {
 function buildColorFields() {
   const host = document.getElementById('colorFields');
   host.innerHTML = '';
-  const slots = activeSlots();
 
-  for (const slot of slots) {
+  for (const slot of activeSlots()) {
     const cfg = SLOTS[slot];
     const field = document.createElement('div');
     field.className = 'field';
@@ -233,12 +254,26 @@ function buildColorFields() {
 
     const row = document.createElement('div');
     row.className = 'row';
+    let colorInput = null;
 
-    const color = document.createElement('input');
-    color.type = 'color';
-    color.value = state.colors[slot];
-    color.oninput = () => { state.colors[slot] = color.value; read.textContent = readout(slot, color.value); scheduleRender(); };
-    row.appendChild(color);
+    if (cfg.auto) {
+      // Kein Farbwaehler: nur eine Anzeige der abgeleiteten Farbe
+      const dot = document.createElement('span');
+      dot.className = 'swatch-auto';
+      dot.title = `folgt der Farbe „${SLOTS[cfg.auto].label}“`;
+      row.appendChild(dot);
+      field.dataset.auto = slot;
+    } else {
+      colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = state.colors[slot];
+      colorInput.oninput = () => {
+        state.colors[slot] = colorInput.value;
+        refreshReadouts();
+        scheduleRender();
+      };
+      row.appendChild(colorInput);
+    }
 
     if (cfg.slider) {
       const s = SLIDER[cfg.slider];
@@ -248,22 +283,30 @@ function buildColorFields() {
       range.value = Math.round(state.sliders[slot] * 100);
       range.oninput = () => {
         state.sliders[slot] = range.value / 100;
-        read.textContent = readout(slot, color.value);
+        refreshReadouts();
         scheduleRender();
       };
       row.appendChild(range);
     }
 
-    read.textContent = readout(slot, color.value);
     field.append(head, row);
+    field.dataset.slot = slot;
     host.appendChild(field);
   }
 
-  if (!slots.includes('auge')) {
-    const note = document.createElement('p');
-    note.className = 'note';
-    note.textContent = 'Die Augenfarbe erscheint hier automatisch, sobald die Ebene 30_auge.png im Motivordner liegt. In den gelieferten Ebenen war nur der Augenglanz enthalten, keine färbbare Iris.';
-    host.appendChild(note);
+  refreshReadouts();
+}
+
+function refreshReadouts() {
+  for (const field of document.querySelectorAll('#colorFields .field')) {
+    const slot = field.dataset.slot;
+    const cfg = SLOTS[slot];
+    const hex = colorFor(slot);
+    field.querySelector('.read').textContent = readout(slot, hex);
+    const dot = field.querySelector('.swatch-auto');
+    if (dot) dot.style.background = hex;
+    const input = field.querySelector('input[type=color]');
+    if (input && input.value.toLowerCase() !== hex.toLowerCase()) input.value = hex;
   }
 }
 
@@ -275,8 +318,8 @@ function readout(slot, hex) {
 }
 
 function applyPreset(p) {
-  for (const slot of activeSlots()) if (p[slot]) state.colors[slot] = p[slot];
-  buildColorFields();
+  for (const slot of activeSlots()) if (!SLOTS[slot].auto && p[slot]) state.colors[slot] = p[slot];
+  refreshReadouts();
   scheduleRender();
 }
 
@@ -313,7 +356,9 @@ function buildLayerList() {
   for (const e of prepared) {
     const row = document.createElement('label');
     row.className = 'layer';
-    const mode = e.def.role === 'tint' ? 'einfärbbar' : e.def.blend.replace('source-over', 'normal');
+    const mode = e.def.role === 'tint'
+      ? (SLOTS[e.def.slot]?.auto ? 'abgeleitet · ' + e.def.blend : 'einfärbbar')
+      : e.def.blend.replace('source-over', 'normal');
     row.innerHTML = `<input type="checkbox" ${e.on ? 'checked' : ''}>
       <span class="nm">${e.def.label}${e.variant ? ' · ' + cap(e.variant) : ''}</span>
       <span class="mode">${mode}</span>`;
@@ -344,15 +389,15 @@ function bindControls() {
   };
   document.getElementById('btnRandom').onclick = () => {
     const rnd = () => '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-    for (const slot of activeSlots()) state.colors[slot] = rnd();
-    buildColorFields();
+    for (const slot of activeSlots()) if (!SLOTS[slot].auto) state.colors[slot] = rnd();
+    refreshReadouts();
     scheduleRender();
   };
   document.getElementById('btnReset').onclick = () => {
     for (const slot of activeSlots()) {
-      state.colors[slot] = SLOTS[slot].default;
-      const sl = SLOTS[slot].slider;
-      if (sl) state.sliders[slot] = SLIDER[sl].def / 100;
+      const cfg = SLOTS[slot];
+      if (!cfg.auto) state.colors[slot] = cfg.default;
+      if (cfg.slider) state.sliders[slot] = SLIDER[cfg.slider].def / 100;
     }
     Object.assign(state, DEFAULTS);
     document.getElementById('bg1').value = DEFAULTS.bg1;
