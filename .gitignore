@@ -1,9 +1,11 @@
 node_modules/
 .DS_Store
-dist/
 .env
 .env.local
 prototype/farbvarianten.png
 prototype/auge-zoom.png
 prototype/hintergruende.png
 prototype/muster-farben.png
+
+# prototype/dist wird bewusst eingecheckt: Netlify laeuft auf Linux und
+# kann das zum Verkleinern benutzte sips nicht ausfuehren.

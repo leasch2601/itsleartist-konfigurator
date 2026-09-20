@@ -1,0 +1,19 @@
+# Veroeffentlichung des Konfigurators.
+#
+# Es gibt bewusst keinen Build-Befehl: Der Ordner prototype/dist wird auf dem
+# Mac erzeugt (node prototype/tools/build.js) und mit eingecheckt, weil das
+# dabei benutzte sips nur unter macOS existiert.
+
+[build]
+  publish = "prototype/dist"
+
+# Ebenen aendern sich selten und wiegen am meisten - lange zwischenspeichern.
+[[headers]]
+  for = "/motive/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

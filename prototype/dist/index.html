@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leartist — Logo-Konfigurator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://use.typekit.net/vun7ytb.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #faf8f5;
+    --surface: #ffffff;
+    --ink:     #1e1d1d;
+    --muted:   #8b857f;
+    --soft:    #5c5751;
+    --rose:    #d39c9f;
+    --rose-lt: #f7ecec;
+    --line:    #ece6df;
+    --line-2:  #f4efe9;
+    --shadow:  0 1px 2px rgba(30,29,29,.03), 0 8px 24px -14px rgba(30,29,29,.14);
+    --shadow-lift: 0 2px 6px rgba(30,29,29,.05), 0 14px 34px -16px rgba(30,29,29,.20);
+    --ease: cubic-bezier(.22,.61,.36,1);
+    --sans: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --serif: "miller-banner-compressed", Georgia, serif;
+    --script: "american-scribe", cursive;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0; color: var(--ink); font: 400 14px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--line);
+    padding: 26px 44px; display: flex; align-items: baseline; gap: 36px;
+  }
+  .brand { font: 400 52px/0.9 var(--script); color: var(--ink); }
+  header .tag {
+    font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+
+  .wrap {
+    display: grid; grid-template-columns: minmax(0,1fr) 392px;
+    gap: 44px; padding: 44px; max-width: 1420px; margin: 0 auto; align-items: start;
+  }
+  @media (max-width: 960px) { .wrap { grid-template-columns: 1fr; gap: 28px; padding: 24px 16px; } }
+
+  /* ---------- Bühne ---------- */
+  .stage { position: sticky; top: 44px; }
+  .canvas-box {
+    position: relative; width: 100%; aspect-ratio: 1;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 22px; overflow: hidden; box-shadow: var(--shadow);
+    transition: box-shadow .5s var(--ease);
+  }
+  .canvas-box:hover { box-shadow: var(--shadow-lift); }
+  canvas#out { width: 100%; height: 100%; display: block; }
+  #reference {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; pointer-events: none; transition: opacity .4s var(--ease);
+  }
+  .stage.compare #reference { opacity: 1; }
+  .stage-foot { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* ---------- Bedienelemente ---------- */
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 20px; padding: 24px 26px; margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .panel h2 {
+    margin: 0 0 18px; font: 500 11px/1 var(--sans);
+    letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+
+  .field + .field { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line-2); }
+  .field { transition: opacity .3s var(--ease); }
+  .field.off { opacity: .45; }
+  .field-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+  .field-head .name { font: 500 13px/1 var(--sans); letter-spacing: .01em; }
+  .field-head .read {
+    font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+    letter-spacing: .03em;
+  }
+  .row { display: flex; align-items: center; gap: 14px; }
+
+  /* Farbwähler als weicher Kreis */
+  input[type=color] {
+    width: 42px; height: 42px; flex: none; padding: 0; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 50%; background: none; overflow: hidden;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  input[type=color]:hover:not(:disabled) { transform: scale(1.07); box-shadow: var(--shadow-lift); }
+  input[type=color]:disabled { cursor: default; opacity: .5; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
+  input[type=color]::-webkit-color-swatch { border: none; border-radius: 50%; }
+
+  .swatch-auto {
+    width: 42px; height: 42px; flex: none; border-radius: 50%;
+    border: 1px dashed var(--line); background: var(--line);
+    transition: background .35s var(--ease);
+  }
+
+  input[type=range] {
+    flex: 1; min-width: 0; -webkit-appearance: none; appearance: none;
+    height: 3px; background: var(--line); border-radius: 999px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--surface); border: 1.5px solid var(--rose); cursor: pointer;
+    box-shadow: 0 1px 4px rgba(30,29,29,.16);
+    transition: transform .2s var(--ease), box-shadow .2s var(--ease);
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.22); }
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.05); }
+  input[type=range]:disabled { opacity: .45; }
+  input[type=range]:disabled::-webkit-slider-thumb { border-color: var(--line); cursor: default; transform: none; }
+
+  /* Schalter statt Häkchen bei den Zusatzmustern */
+  .extra-head { cursor: pointer; gap: 12px; }
+  .extra-head .name { flex: 1; }
+  .extra-head input[type=checkbox] {
+    -webkit-appearance: none; appearance: none; margin: 0; flex: none;
+    width: 36px; height: 21px; border-radius: 999px; background: var(--line);
+    position: relative; cursor: pointer; transition: background .3s var(--ease);
+  }
+  .extra-head input[type=checkbox]::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 15px; height: 15px;
+    border-radius: 50%; background: var(--surface);
+    box-shadow: 0 1px 3px rgba(30,29,29,.25);
+    transition: transform .3s var(--ease);
+  }
+  .extra-head input[type=checkbox]:checked { background: var(--rose); }
+  .extra-head input[type=checkbox]:checked::after { transform: translateX(15px); }
+
+  /* ---------- Kacheln ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+  .tile {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 14px; padding: 9px 7px 10px; cursor: pointer;
+    font: 400 11px/1.3 var(--sans); text-align: center;
+    transition: border-color .25s var(--ease), background .25s var(--ease),
+                transform .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .tile:hover { border-color: var(--rose); transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .tile:active { transform: translateY(0); }
+  .tile.on { border-color: var(--rose); background: var(--rose-lt); font-weight: 500; }
+  .tile .swatch { display: block; width: 100%; height: 30px; border-radius: 9px; margin-bottom: 8px; }
+  .tile canvas.swatch { height: 44px; }
+  .tile img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 9px; margin-bottom: 8px; background: var(--bg); }
+
+  /* ---------- Knöpfe ---------- */
+  button.act {
+    border: 1px solid var(--ink); background: none; color: var(--ink);
+    border-radius: 999px; padding: 12px 22px; cursor: pointer;
+    font: 500 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase;
+    transition: background .25s var(--ease), color .25s var(--ease),
+                border-color .25s var(--ease), transform .2s var(--ease);
+  }
+  button.act:hover { background: var(--ink); color: var(--surface); transform: translateY(-1px); }
+  button.act:active { transform: translateY(0); }
+  button.act.ghost { border-color: var(--line); color: var(--soft); }
+  button.act.ghost:hover { background: var(--bg); color: var(--ink); border-color: var(--muted); }
+  button.act.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  button.mini {
+    border: 1px solid var(--line); background: none; color: var(--soft);
+    border-radius: 999px; padding: 5px 13px; cursor: pointer;
+    font: 400 9.5px var(--sans); letter-spacing: .1em; text-transform: uppercase;
+    transition: border-color .25s var(--ease), color .25s var(--ease), transform .2s var(--ease);
+  }
+  button.mini:hover { border-color: var(--rose); color: var(--ink); transform: translateY(-1px); }
+
+  /* ---------- Ebenenliste ---------- */
+  details.layers summary {
+    cursor: pointer; font: 500 11px var(--sans); letter-spacing: .18em;
+    text-transform: uppercase; color: var(--muted); list-style: none;
+    transition: color .25s var(--ease);
+  }
+  details.layers summary:hover { color: var(--ink); }
+  details.layers summary::-webkit-details-marker { display: none; }
+  details.layers summary::after { content: " +"; }
+  details.layers[open] summary::after { content: " –"; }
+  .layer { display: flex; align-items: center; gap: 11px; padding: 8px 0; font-size: 12px; }
+  .layer:first-of-type { margin-top: 16px; }
+  .layer input { accent-color: var(--rose); }
+  .layer .nm { flex: 1; }
+  .layer .mode { color: var(--muted); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; }
+
+  #status { color: var(--muted); font-size: 10.5px; padding: 0 44px 44px; letter-spacing: .06em; }
+  #status.err { color: #b4524f; }
+
+  /* ---------- Auftritt ---------- */
+  .stage, .panel {
+    opacity: 0; transform: translateY(10px);
+    transition: opacity .6s var(--ease), transform .6s var(--ease), box-shadow .5s var(--ease);
+  }
+  body.ready .stage, body.ready .panel { opacity: 1; transform: none; }
+  body.ready .stage { transition-delay: .04s; }
+  body.ready .panel:nth-of-type(1) { transition-delay: .10s; }
+  body.ready .panel:nth-of-type(2) { transition-delay: .16s; }
+  body.ready .panel:nth-of-type(3) { transition-delay: .22s; }
+  body.ready .panel:nth-of-type(4) { transition-delay: .28s; }
+  body.ready .panel:nth-of-type(5) { transition-delay: .34s; }
+  body.ready .panel:nth-of-type(6) { transition-delay: .40s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    .stage, .panel { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Leartist</span>
+  <span class="tag">Logo-Konfigurator</span>
+</header>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="canvas-box">
+      <canvas id="out" width="1000" height="1000"></canvas>
+      <img id="reference" alt="Original">
+    </div>
+    <div class="stage-foot">
+      <button class="act" id="btnDownload">Als PNG sichern</button>
+      <button class="act ghost" id="btnCompare">Original</button>
+      <button class="act ghost" id="btnRandom">Zufall</button>
+      <button class="act ghost" id="btnReset">Zurücksetzen</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" id="motifPanel" hidden>
+      <h2>Motiv</h2>
+      <div class="tiles" id="motifs"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Vorlagen</h2>
+      <div class="tiles" id="presets"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Farben</h2>
+      <div id="colorFields"></div>
+    </div>
+
+    <div class="panel" id="extraPanel" hidden>
+      <h2>Zusatzmuster</h2>
+      <div id="extras"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Hintergrund <button class="mini" id="btnSeed" hidden>Neu würfeln</button></h2>
+      <div class="tiles" id="bgStyles" style="margin-bottom:18px"></div>
+      <div class="row">
+        <input type="color" id="bg1" value="#f3e7e6">
+        <input type="color" id="bg2" value="#d9c6c2">
+      </div>
+    </div>
+
+    <div class="panel">
+      <details class="layers">
+        <summary>Ebenen</summary>
+        <div id="layers"></div>
+      </details>
+    </div>
+  </div>
+</div>
+<div id="status">Lade Motive …</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
