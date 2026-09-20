@@ -1,0 +1,56 @@
+{
+  "motive": [
+    {
+      "slug": "appaloosa-portrait",
+      "name": "Appaloosa portrait",
+      "preview": "_vorschau.png",
+      "layers": [
+        {
+          "file": "10_fell.png",
+          "order": 10,
+          "blend": "source-over",
+          "role": "tint",
+          "slot": "fell",
+          "label": "Fell"
+        },
+        {
+          "file": "20_maehne.png",
+          "order": 20,
+          "blend": "source-over",
+          "role": "tint",
+          "slot": "maehne",
+          "label": "Mähne"
+        },
+        {
+          "file": "40_schatten_multiply.png",
+          "order": 40,
+          "blend": "multiply",
+          "role": "fixed",
+          "label": "Schatten"
+        },
+        {
+          "file": "50_detail_overlay.png",
+          "order": 50,
+          "blend": "overlay",
+          "role": "fixed",
+          "label": "Detail"
+        },
+        {
+          "file": "60_glanz_dodge.png",
+          "order": 60,
+          "blend": "color-dodge",
+          "role": "fixed",
+          "label": "Glanz"
+        },
+        {
+          "file": "70_highlight_add.png",
+          "order": 70,
+          "blend": "lighter",
+          "role": "tint",
+          "slot": "licht",
+          "label": "Licht"
+        }
+      ]
+    }
+  ]
+}

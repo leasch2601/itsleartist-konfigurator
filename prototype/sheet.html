@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Farbvarianten</title>
+<style>
+  body { margin:0; background:#14131a; color:#ece9f1;
+         font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:18px; }
+  h1 { font-size:15px; margin:0 0 4px; }
+  p.sub { color:#9c96ab; font-size:12px; margin:0 0 16px; }
+  .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+  figure { margin:0; }
+  canvas, img.ref { width:100%; aspect-ratio:1; display:block; border-radius:9px; border:1px solid #37333f; }
+  figcaption { margin-top:6px; font-size:11px; color:#9c96ab; text-align:center; }
+  figure.orig figcaption { color:#c9a227; font-weight:600; }
+</style></head>
+<body>
+<h1>Ein und dieselben Ebenen — zehn Farbvarianten</h1>
+<p class="sub">Alles live im Browser gerechnet. Keine vorgerenderten Dateien, keine KI.</p>
+<div class="grid" id="grid"></div>
+<script type="module">
+import { buildStructureMap, applyColor } from './recolor.js';
+const S = 500;
+const BASE = 'motive/appaloosa-portrait';
+const LAYERS = [
+  { file:'10_fell.png',              role:'tint',  color:'fur',   blend:'source-over' },
+  { file:'20_maehne.png',            role:'tint',  color:'mane',  blend:'source-over' },
+  { file:'40_schatten_multiply.png', role:'fixed', blend:'multiply' },
+  { file:'50_detail_overlay.png',    role:'fixed', blend:'overlay' },
+  { file:'60_glanz_dodge.png',       role:'fixed', blend:'color-dodge' },
+  { file:'70_highlight_add.png',     role:'tint',  color:'light', blend:'lighter', alpha:0.7 },
+];
+const VARIANTS = [
+  { name:'Rappe',     fur:'#2f2b34', mane:'#15131a', light:'#b9c6e0', bg:['#2a2b38','#0b0c12'] },
+  { name:'Fuchs',     fur:'#a4562a', mane:'#7a3c18', light:'#ffd9a0', bg:['#3a2a20','#120b07'] },
+  { name:'Falbe',     fur:'#c49a5e', mane:'#3a2c1e', light:'#ffe9bd', bg:['#3a3225','#12100a'] },
+  { name:'Schimmel',  fur:'#ded9d6', mane:'#f1ece8', light:'#ffffff', bg:['#343040','#101018'] },
+  { name:'Palomino',  fur:'#d8a866', mane:'#f4ead6', light:'#fff3d6', bg:['#3d3324','#14100a'] },
+  { name:'Blue Roan', fur:'#6e7d94', mane:'#1e2129', light:'#cfe0f5', bg:['#232a36','#0a0d12'] },
+  { name:'Nebel',     fur:'#8b7bb5', mane:'#2e2545', light:'#e6d4ff', bg:['#312a4a','#0f0b1a'] },
+  { name:'Koralle',   fur:'#d76a68', mane:'#4a1f2c', light:'#ffd0c4', bg:['#3d2028','#14080d'] },
+  { name:'Mint',      fur:'#79b8a4', mane:'#1f3a35', light:'#d9fff2', bg:['#20352f','#080f0d'] },
+];
+const load = (src) => new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=BASE+'/'+src;});
+const prepped = [];
+for (const def of LAYERS) {
+  const img = await load(def.file);
+  const c = document.createElement('canvas'); c.width=c.height=S;
+  const cx = c.getContext('2d',{willReadFrequently:true});
+  cx.drawImage(img,0,0,S,S);
+  const e = { def, canvas:c };
+  if (def.role==='tint') {
+    e.map = buildStructureMap(cx.getImageData(0,0,S,S));
+    e.tmp = document.createElement('canvas'); e.tmp.width=e.tmp.height=S;
+    e.tmpCtx = e.tmp.getContext('2d'); e.buf = new ImageData(S,S);
+  }
+  prepped.push(e);
+}
+const grid = document.getElementById('grid');
+for (const v of VARIANTS) {
+  const fig = document.createElement('figure');
+  const cv = document.createElement('canvas'); cv.width=cv.height=S;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createRadialGradient(S*.5,S*.42,S*.05,S*.5,S*.5,S*.75);
+  g.addColorStop(0,v.bg[0]); g.addColorStop(1,v.bg[1]);
+  ctx.fillStyle=g; ctx.fillRect(0,0,S,S);
+  for (const e of prepped) {
+    ctx.globalCompositeOperation = e.def.blend;
+    ctx.globalAlpha = e.def.alpha ?? 1;
+    if (e.def.role==='tint') {
+      applyColor(e.map, v[e.def.color], 0.85, e.buf);
+      e.tmpCtx.putImageData(e.buf,0,0);
+      ctx.drawImage(e.tmp,0,0);
+    } else ctx.drawImage(e.canvas,0,0);
+  }
+  ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+  const cap = document.createElement('figcaption'); cap.textContent = v.name;
+  fig.append(cv, cap); grid.appendChild(fig);
+}
+const fig = document.createElement('figure'); fig.className='orig';
+const im = document.createElement('img'); im.className='ref'; im.src=BASE+'/_vorschau.png';
+const cap = document.createElement('figcaption'); cap.textContent='Dein Original';
+fig.append(im, cap); grid.appendChild(fig);
+document.title = 'ready';
+</script>
+</body></html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leartist Konfigurator — Prototyp</title>
+<style>
+  :root {
+    --bg: #14131a; --panel: #1e1c26; --panel-2: #272430;
+    --line: #37333f; --text: #ece9f1; --muted: #9c96ab; --accent: #c9a227;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: .02em; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+  .wrap { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 24px; padding: 24px; align-items: start; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; position: sticky; top: 24px; }
+  .canvas-box { position: relative; width: 100%; aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+                background: repeating-conic-gradient(#2a2733 0 25%, #211f2a 0 50%) 0 0/24px 24px; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #reference { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .stage.compare #reference { display: block; }
+  .stage-foot { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .panel h2 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  input[type=color] { width: 46px; height: 32px; padding: 0; border: 1px solid var(--line);
+                      border-radius: 8px; background: none; cursor: pointer; flex: none; }
+  input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
+  .val { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11px; min-width: 30px; text-align: right; }
+
+  .presets, .motifs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .preset, .motif { border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+            border-radius: 9px; padding: 8px 6px; cursor: pointer; font-size: 11px; text-align: center; }
+  .preset:hover, .motif:hover { border-color: var(--accent); }
+  .motif.on { border-color: var(--accent); }
+  .swatch { height: 22px; border-radius: 5px; margin-bottom: 5px; border: 1px solid rgba(255,255,255,.12); }
+  .motif img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 5px; margin-bottom: 5px; background: #1a1822; }
+
+  button.act { border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+               border-radius: 9px; padding: 8px 14px; cursor: pointer; font-size: 12px; }
+  button.act:hover { border-color: var(--accent); }
+  button.act.on { background: var(--accent); color: #1a1505; border-color: var(--accent); font-weight: 600; }
+
+  .layer { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }
+  .layer input[type=checkbox] { accent-color: var(--accent); }
+  .layer .nm { flex: 1; }
+  .layer .mode { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+  #status { color: var(--muted); font-size: 12px; padding: 0 24px 24px; }
+  #status.err { color: #e5807a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Leartist Logo-Konfigurator — Prototyp</h1>
+  <p>Echtzeit-Umfärbung deiner Procreate-Ebenen im Browser. Keine KI, keine vorgerenderten Varianten.</p>
+</header>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="canvas-box">
+      <canvas id="out" width="1000" height="1000"></canvas>
+      <img id="reference" alt="Original">
+    </div>
+    <div class="stage-foot">
+      <button class="act" id="btnCompare">Dein Original einblenden</button>
+      <button class="act" id="btnRandom">Zufallsfarben</button>
+      <button class="act" id="btnDownload">PNG speichern</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" id="motifPanel" hidden>
+      <h2>Motiv</h2>
+      <div class="motifs" id="motifs"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Fellfarben-Vorlagen</h2>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Farben</h2>
+      <div id="colorFields"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Hintergrund</h2>
+      <div class="field">
+        <div class="row">
+          <input type="color" id="bg1" value="#2e2740">
+          <input type="color" id="bg2" value="#0d0b14">
+          <button class="act" id="btnBgType">Radial</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Ebenen</h2>
+      <div id="layers"></div>
+    </div>
+  </div>
+</div>
+<div id="status">Lade Motive …</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
