@@ -1,11 +1,11 @@
 # Veroeffentlichung des Konfigurators.
 #
-# Es gibt bewusst keinen Build-Befehl: Der Ordner prototype/dist wird auf dem
+# Es gibt bewusst keinen Build-Befehl: Der Ordner docs wird auf dem
 # Mac erzeugt (node prototype/tools/build.js) und mit eingecheckt, weil das
 # dabei benutzte sips nur unter macOS existiert.
 
 [build]
-  publish = "prototype/dist"
+  publish = "docs"
 
 # Ebenen aendern sich selten und wiegen am meisten - lange zwischenspeichern.
 [[headers]]

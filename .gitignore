@@ -7,5 +7,5 @@ prototype/auge-zoom.png
 prototype/hintergruende.png
 prototype/muster-farben.png
 
-# prototype/dist wird bewusst eingecheckt: Netlify laeuft auf Linux und
-# kann das zum Verkleinern benutzte sips nicht ausfuehren.
+# docs/ wird bewusst eingecheckt: GitHub Pages und Netlify liefern die Dateien
+# direkt aus, koennen das zum Verkleinern benutzte sips aber nicht ausfuehren.
