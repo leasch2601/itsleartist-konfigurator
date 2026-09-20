@@ -12,13 +12,25 @@
           "blend": "source-over",
           "role": "tint",
           "slot": "fell",
-          "label": "Fell",
-          "variants": [
-            {
-              "name": "appaloosa",
-              "file": "10_fell~appaloosa.png"
-            }
-          ]
+          "label": "Fell"
+        },
+        {
+          "file": "11_extra-tupfen_overlay.png",
+          "order": 11,
+          "variant": null,
+          "blend": "overlay",
+          "role": "extra",
+          "optional": true,
+          "label": "Tupfen"
+        },
+        {
+          "file": "12_extra-sprenkel_multiply.png",
+          "order": 12,
+          "variant": null,
+          "blend": "multiply",
+          "role": "extra",
+          "optional": true,
+          "label": "Sprenkel"
         },
         {
           "file": "20_maehne.png",

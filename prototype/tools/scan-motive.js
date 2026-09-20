@@ -43,17 +43,22 @@ const LABEL = {
   auge: 'Augen', highlight: 'Highlights', outline: 'Outline',
   augenreflex: 'Augenglanz', schatten: 'Schattierung', detail: 'Details',
   glanz: 'Glanz', multiply: 'Schattierung', overlay: 'Overlay',
+  tupfen: 'Tupfen', sprenkel: 'Sprenkel', apfel: 'Äpfel', stichelhaar: 'Stichelhaar',
   dodge: 'Colour Dodge', add: 'Highlights', screen: 'Screen',
 };
 
 const prettify = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function parseLayer(file) {
-  const m = /^(\d+)_([a-z0-9]+)(?:~([a-z0-9-]+))?(?:_([a-z]+))?\.png$/i.exec(file);
+  const m = /^(\d+)_([a-z0-9-]+?)(?:~([a-z0-9-]+))?(?:_([a-z]+))?\.png$/i.exec(file);
   if (!m) return null;
   const [, order, rawKey, variant, suffix] = m;
   const key = rawKey.toLowerCase();
   const slot = TINT[key];
+
+  // "extra-tupfen" ist eine Zusatzebene, die der Kunde dazuschalten kann.
+  // Sie liegt standardmaessig aus und bekommt keinen Farbwaehler.
+  const extra = key.startsWith('extra-') ? key.slice(6) : null;
 
   // Kurzform zulassen: "60_dodge.png" ohne Rollennamen meint den Blendmodus
   // selbst. Ohne das laege die Ebene stumm als "normal" im Stapel.
@@ -65,9 +70,10 @@ function parseLayer(file) {
     key,
     variant: variant ? variant.toLowerCase() : null,
     blend: BLEND[(suffix || bare || '').toLowerCase()] || 'source-over',
-    role: slot ? 'tint' : 'fixed',
+    role: extra ? 'extra' : slot ? 'tint' : 'fixed',
     slot: slot || undefined,
-    label: LABEL[key] || prettify(key),
+    optional: extra ? true : undefined,
+    label: extra ? (LABEL[extra] || prettify(extra)) : (LABEL[key] || prettify(key)),
   };
 }
 
@@ -121,8 +127,10 @@ for (const dir of dirs) {
 
   const slots = [...new Set(motif.layers.filter((l) => l.slot).map((l) => l.slot))];
   const varis = motif.layers.filter((l) => l.variants).map((l) => `${l.label}: ${l.variants.map(v => v.name).join('/')}`);
+  const extras = motif.layers.filter((l) => l.optional).map((l) => l.label);
   console.log(`  + ${dir}: ${motif.layers.length} Ebenen · Farbregler: ${slots.join(', ') || 'keine'}` +
-              (varis.length ? ` · Varianten: ${varis.join('; ')}` : ''));
+              (varis.length ? ` · Varianten: ${varis.join('; ')}` : '') +
+              (extras.length ? ` · Zusatzebenen: ${extras.join(', ')}` : ''));
 }
 
 fs.writeFileSync(path.join(ROOT, 'index.json'), JSON.stringify({ motive }, null, 2));

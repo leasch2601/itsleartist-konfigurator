@@ -149,3 +149,58 @@ export function hexToRgb(hex) {
   const v = parseInt(hex.replace('#', ''), 16);
   return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
 }
+
+/**
+ * Wie applyColor, aber mit ortsabhaengiger Zielfarbe.
+ *
+ * Die Outline zeichnet alles: Fell, Maehne und Auge. Eine einzige abgeleitete
+ * Farbe reicht dafuer nicht. Bei einem Palomino ist die Maehne heller als das
+ * Fell, dort muss auch die Kontur heller werden. Und ueber dem Auge darf sie
+ * gar nicht mit aufhellen, sonst verliert der Blick bei einem Schimmel seine
+ * Zeichnung.
+ *
+ * regions: [{ mask: Uint8ClampedArray (Deckkraft der Region), hex }]
+ * Spaetere Eintraege ueberschreiben fruehere, gewichtet nach ihrer Deckkraft.
+ */
+export function applyColorRegions(map, baseHex, regions, contrast = 0.35, out) {
+  const { lum, alpha, width, height, meanNorm, structure } = map;
+  const n = width * height;
+  const result = out || new ImageData(width, height);
+  const data = result.data;
+
+  const base = hexToRgb(baseHex);
+  const prepared = regions
+    .filter((r) => r && r.mask && r.hex)
+    .map((r) => ({ mask: r.mask, rgb: hexToRgb(r.hex) }));
+
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    const a = alpha[i];
+    if (a === 0) { data[o] = data[o + 1] = data[o + 2] = data[o + 3] = 0; continue; }
+
+    let tr = base[0], tg = base[1], tb = base[2];
+    for (let k = 0; k < prepared.length; k++) {
+      const w = prepared[k].mask[i] / 255;
+      if (w <= 0) continue;
+      const c = prepared[k].rgb;
+      tr += (c[0] - tr) * w;
+      tg += (c[1] - tg) * w;
+      tb += (c[2] - tb) * w;
+    }
+
+    const [h, s, targetL] = rgbToHsl(tr, tg, tb);
+    const d = (lum[i] - meanNorm) * contrast * structure;
+    const L = d >= 0
+      ? targetL + d * (1 - targetL) * 1.6
+      : targetL + d * targetL * 1.6;
+
+    const [r, g, b] = hslToRgb(h, s, Math.min(1, Math.max(0, L)));
+    data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = a;
+  }
+  return result;
+}
+
+/** Deckkraft-Maske einer vorbereiteten Ebene, zum Abgrenzen von Regionen. */
+export function alphaMask(map) {
+  return map.alpha;
+}

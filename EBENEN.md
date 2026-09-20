@@ -48,31 +48,44 @@ Sie trägt die gesamte Zeichnung: Augenlid, Nüstern, Muskelkanten,
 Mähnensträhnen. Ohne sie wirkt das Logo wie ein weichgezeichneter Farbfleck.
 Deshalb bekommt sie eine hohe Nummer und liegt über allem anderen.
 
-Sie liegt auf **Multiply** und bekommt ihre Farbe **automatisch aus der
-Fellfarbe**: je heller das Pferd, desto heller die Kontur. Sonst läge bei
-einem Schimmel eine fast schwarze Linie auf fast weissem Fell, was viel zu
-hart wirkt. Der Regler "Kontrast" bestimmt den Abstand zwischen beiden.
+Sie liegt auf **Multiply** und bekommt ihre Farbe **automatisch aus den
+Ebenen, über denen sie jeweils liegt**:
+
+- über dem Fell folgt sie der Fellfarbe
+- über der Mähne der Mähnenfarbe — sonst läge bei einem Palomino eine dunkle
+  Kontur auf einer fast weissen Mähne
+- über dem Auge bleibt sie bewusst dunkel, egal wie hell das Pferd ist, sonst
+  verliert der Blick bei einem Schimmel seine Zeichnung
+
+Der Regler "Kontrast" bestimmt den Abstand zwischen Fläche und Kontur.
 
 Der Augenglanz liegt als einzige Ebene noch **über** der Outline — sonst
 würde die Multiplikation ihn wegdunkeln.
 
-## Fellmuster als Variante
+## Fellmuster als Zusatzebenen
 
-Der Regelfall ist ein **flächig einfarbiges** Fell. Muster wie Appaloosa sind
-die Ausnahme und werden als Variante derselben Ebene abgelegt:
+Der Regelfall ist ein **flächig einfarbiges** Fell. Muster wie Tupfen, Äpfel
+oder Sprenkel kommen als eigene, zuschaltbare Ebenen darüber:
 
 ```
-10_fell.png              ← einfarbig, die Standardfassung
-10_fell~appaloosa.png    ← Variante mit Tupfen
-10_fell~schecke.png      ← weitere Variante
+11_extra-tupfen_overlay.png      ← Tupfen und Äpfel
+12_extra-sprenkel_multiply.png   ← feine Sprenkel
+13_extra-stichelhaar_overlay.png ← weitere Muster
 ```
 
-Der Konfigurator baut daraus automatisch eine Umschaltung „Einfarbig /
-Appaloosa / Schecke". Beide Fassungen werden anschließend ganz normal
-eingefärbt, das Muster wandert also in jeder Wunschfarbe mit.
+Alles mit dem Präfix `extra-` wird zu einem Häkchen im Konfigurator, das der
+Kunde dazuschalten kann, mit einem Regler für die Stärke. Diese Ebenen starten
+**ausgeschaltet** und bekommen keinen eigenen Farbwähler.
 
-Wichtig für die Variante: Sie muss **deckungsgleich** mit der Grundebene sein,
-also dieselbe Silhouette haben. Nur der Inhalt darf sich unterscheiden.
+Der Blendmodus entscheidet, wie du sie malst:
+
+- **Overlay** für Muster mit hellen *und* dunklen Anteilen. Mittleres Grau ist
+  neutral, Helleres hellt auf, Dunkleres dunkelt ab. Ideal für Äpfel und Tupfen.
+- **Multiply** für rein dunkle Muster. Weiss ist neutral. Ideal für Sprenkel
+  und Stichelhaar.
+
+Weil die Muster nicht eingefärbt werden, wandern sie nicht mit der Fellfarbe
+mit, sondern liegen als echte Zeichnung darüber — auf jedem Fell gleich.
 
 ## Wie stark darf die Ebene durchgemalt sein?
 
